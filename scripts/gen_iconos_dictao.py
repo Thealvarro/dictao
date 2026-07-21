@@ -30,11 +30,11 @@ from PIL import Image, ImageDraw
 # --------------------------------------------------------------------------
 CARBON = (11, 14, 20, 255)        # #0B0E14  fondo squircle
 BORDE = (31, 41, 55, 255)         # #1F2937  borde interior / glifo oscuro (barra clara)
-LIMA = (163, 230, 53, 255)        # #A3E635  verde lima (color primario)
+NARANJA = (249, 115, 22, 255)     # #F97316  naranja electrico (color primario)
 BLANCO = (248, 250, 252, 255)     # #F8FAFC  casi blanco (cursor / glifo en barra oscura)
-LIMA_CLARO = (77, 124, 15, 255)   # #4D7C0F  lima apagado (para leerse en barra CLARA)
-AMBAR_BARRA_OSCURA = (251, 191, 36, 255)  # #FBBF24  ambar brillante (barra oscura)
-AMBAR_BARRA_CLARA = (180, 83, 9, 255)     # #B45309  ambar quemado (barra clara)
+NARANJA_OSCURO = (194, 65, 12, 255)  # #C2410C  naranja apagado (para leerse en barra CLARA)
+CYAN_BARRA_OSCURA = (34, 211, 238, 255)  # #22D3EE  cyan electrico (barra oscura)
+CYAN_BARRA_CLARA = (14, 116, 144, 255)   # #0E7490  cyan oscuro (barra clara)
 
 # Supersampling: dibujamos a SS veces el tamano final y reducimos con LANCZOS.
 SS = 8
@@ -132,7 +132,7 @@ def _fondo_squircle(base, S, con_borde):
         d.rounded_rectangle([0, 0, S - 1, S - 1], radius=r, fill=CARBON)
 
 
-def render_icono(lado, con_fondo=True, color_glifo=LIMA, color_cursor=BLANCO,
+def render_icono(lado, con_fondo=True, color_glifo=NARANJA, color_cursor=BLANCO,
                  con_borde=True, alturas=None, frac_ancho=0.60):
     """
     Renderiza un icono cuadrado de 'lado' px (RGBA).
@@ -230,9 +230,9 @@ def main():
     dir_icons = os.path.join(raiz, "src-tauri", "icons")
     dir_res = os.path.join(raiz, "src-tauri", "resources")
 
-    # ---- Icono de app (con squircle, glifo lima, cursor blanco) ----
+    # ---- Icono de app (con squircle, glifo naranja, cursor blanco) ----
     def app(lado):
-        return render_icono(lado, con_fondo=True, color_glifo=LIMA,
+        return render_icono(lado, con_fondo=True, color_glifo=NARANJA,
                             color_cursor=BLANCO, con_borde=True, frac_ancho=0.60)
 
     pngs_icons = {
@@ -277,12 +277,12 @@ def main():
     tray_specs = {
         # Archivos SIN "_dark" -> tema Dark (barra OSCURA) -> glifo CLARO
         "tray_idle.png": BLANCO,
-        "tray_recording.png": LIMA,
-        "tray_transcribing.png": AMBAR_BARRA_OSCURA,
+        "tray_recording.png": NARANJA,
+        "tray_transcribing.png": CYAN_BARRA_OSCURA,
         # Archivos CON "_dark" -> tema Light (barra CLARA) -> glifo OSCURO
         "tray_idle_dark.png": BORDE,
-        "tray_recording_dark.png": LIMA_CLARO,
-        "tray_transcribing_dark.png": AMBAR_BARRA_CLARA,
+        "tray_recording_dark.png": NARANJA_OSCURO,
+        "tray_transcribing_dark.png": CYAN_BARRA_CLARA,
     }
     alturas_por_estado = {
         "recording": ALTURAS_TRAY_REC,
@@ -294,16 +294,16 @@ def main():
         print(f"[resources] {nombre}")
 
     # ---- Tema "Colored" (Linux): CON squircle carbon de fondo ----
-    # handy.png = idle (glifo lima, cursor blanco)
-    render_icono(64, con_fondo=True, color_glifo=LIMA, color_cursor=BLANCO,
+    # handy.png = idle (glifo naranja, cursor blanco)
+    render_icono(64, con_fondo=True, color_glifo=NARANJA, color_cursor=BLANCO,
                  con_borde=True, alturas=ALTURAS_IDLE, frac_ancho=0.60
                  ).save(os.path.join(dir_res, "handy.png"), format="PNG")
     # recording.png = grabando (barras mas altas)
-    render_icono(64, con_fondo=True, color_glifo=LIMA, color_cursor=BLANCO,
+    render_icono(64, con_fondo=True, color_glifo=NARANJA, color_cursor=BLANCO,
                  con_borde=True, alturas=ALTURAS_REC, frac_ancho=0.60
                  ).save(os.path.join(dir_res, "recording.png"), format="PNG")
-    # transcribing.png = transcribiendo (glifo ambar)
-    render_icono(64, con_fondo=True, color_glifo=AMBAR_BARRA_OSCURA, color_cursor=BLANCO,
+    # transcribing.png = transcribiendo (glifo cyan)
+    render_icono(64, con_fondo=True, color_glifo=CYAN_BARRA_OSCURA, color_cursor=BLANCO,
                  con_borde=True, alturas=ALTURAS_IDLE, frac_ancho=0.60
                  ).save(os.path.join(dir_res, "transcribing.png"), format="PNG")
     print("[resources] handy.png / recording.png / transcribing.png (tema Colored)")

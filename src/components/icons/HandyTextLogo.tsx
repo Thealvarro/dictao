@@ -1,12 +1,12 @@
 /* eslint-disable i18next/no-literal-string -- decorative brand wordmark, not translatable */
 import React from "react";
 
-// Dictao wordmark: the lowercase monospace word "dictao" followed by a lime
+// Dictao wordmark: the lowercase monospace word "dictao" followed by an orange
 // cursor block — the signature of the brand ("dictao█"). Keeps the original
 // component name/props so existing imports (Sidebar, Onboarding,
 // AccessibilityOnboarding) don't change. The letters use the neutral
 // `logo-stroke` token (dark on light, light on dark); the cursor block uses the
-// lime `logo-primary` token.
+// orange `logo-primary` token.
 const HandyTextLogo = ({
   width,
   height,
@@ -38,7 +38,7 @@ const HandyTextLogo = ({
       >
         dictao
       </text>
-      {/* Cursor block — the lime signature. Sits just past the wordmark with a
+      {/* Cursor block — the orange signature. Sits just past the wordmark with a
           small deliberate gap, like a terminal caret. */}
       <rect
         x="284"

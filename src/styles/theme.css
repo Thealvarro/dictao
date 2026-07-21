@@ -5,27 +5,27 @@
      light/dark pair; the active tokens below and the `data-theme` overrides
      in App.css reference these, so a hex value lives in exactly one place.
 
-     Dictao palette: carbón + lima. In dark the accent is vibrant lime
-     (#A3E635); in light it's a deeper lime (#4D7C0F) that keeps AA contrast
-     on the near-white background. `logo-primary` is the lime accent (the
+     Dictao palette: carbón + naranja. In dark the accent is vibrant orange
+     (#F97316); in light it's a deeper orange (#C2410C) that keeps AA contrast
+     on the near-white background. `logo-primary` is the orange accent (the
      cursor block in the wordmark, dots, waveform, spinners); `logo-stroke`
      is the neutral, readable wordmark color. */
   --light-color-text: #111827;
   --light-color-background: #f8fafc;
-  --light-color-logo-primary: #4d7c0f;
+  --light-color-logo-primary: #c2410c;
   --light-color-logo-stroke: #111827;
   --light-color-on-accent: #f8fafc;
 
   --dark-color-text: #e5e7eb;
   --dark-color-background: #0b0e14;
-  --dark-color-logo-primary: #a3e635;
+  --dark-color-logo-primary: #f97316;
   --dark-color-logo-stroke: #e5e7eb;
   --dark-color-on-accent: #0b0e14;
 
   /* Tokens that do not change between light and dark. background-ui is the
-     solid-button fill: a deep lime that keeps white button text legible (AA)
+     solid-button fill: a deep orange that keeps white button text legible (AA)
      in both themes. text-stroke is pure white. */
-  --color-background-ui: #4d7c0f;
+  --color-background-ui: #c2410c;
   --color-text-stroke: #f8fafc;
   --color-mid-gray: #808080;
 

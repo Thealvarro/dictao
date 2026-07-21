@@ -2,7 +2,7 @@
 // waveform — the "prompt + voice" mark. Heights step medium → high → max →
 // low, with the last bar set slightly apart like a cursor. Kept monochrome
 // (inherits fill/stroke from the text color, same as the surrounding sidebar
-// icons) so it stays legible on the lime active-item background. Same export
+// icons) so it stays legible on the orange active-item background. Same export
 // name, square viewBox, and { width, height } interface as before.
 const HandyHand = ({
   width,
