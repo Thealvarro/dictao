@@ -359,12 +359,13 @@
     <p class="subtitle">Dictas, y el texto aparece escrito donde esté tu cursor. En <code>Cursor</code>, en <code>Claude&nbsp;Code</code>, en el terminal, donde sea. Tu voz no sale de tu máquina.</p>
 
     <div class="cta-row">
-      <a class="btn btn-primary" id="mainCta" href="https://github.com/Thealvarro/dictao/releases/latest" target="_blank" rel="noopener noreferrer">
+      <a class="btn btn-primary" id="mainCta" href="https://github.com/Thealvarro/dictao/releases/download/v1.0.0/Dictao_1.0.0_x64-setup.exe" download>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0l4-4m-4 4l-4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
         <span id="mainCtaLabel">Descargar para Windows</span>
       </a>
       <a class="link-sub" href="#descargar">otras plataformas →</a>
     </div>
+    <p class="mono muted" id="ctaMeta" style="margin-top:14px; font-size:13px; min-height:1.2em;"></p>
 
     <!-- DEMO TERMINAL -->
     <div class="term" role="img" aria-label="Demostración: dictas una frase y aparece escrita sola en un terminal.">
@@ -525,8 +526,8 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5.5l7.5-1v7.2H3zM11.2 4.4L21 3v9.7h-9.8zM3 12.9h7.5v6.6L3 18.5zM11.2 12.9H21V21l-9.8-1.4z"/></svg>
             <div><div class="name">Windows</div><div class="fmt">.exe · 64-bit</div></div>
           </div>
-          <a class="dl-btn" href="https://github.com/Thealvarro/dictao/releases/latest" target="_blank" rel="noopener noreferrer">Descargar .exe</a>
-          <p class="dl-note">Windows puede mostrar aviso de SmartScreen: el binario aún no está firmado con certificado comercial. El código es abierto, <a href="https://github.com/Thealvarro/dictao" target="_blank" rel="noopener noreferrer">revísalo tú mismo</a>.</p>
+          <a class="dl-btn" data-dl="windows" href="https://github.com/Thealvarro/dictao/releases/download/v1.0.0/Dictao_1.0.0_x64-setup.exe" download>Descargar .exe</a>
+          <p class="dl-note">Windows puede mostrar aviso de SmartScreen: el binario aún no está firmado con certificado comercial. El código es abierto, <a href="https://github.com/Thealvarro/dictao" target="_blank" rel="noopener noreferrer">revísalo tú mismo</a>. ¿<a href="https://github.com/Thealvarro/dictao/releases/latest" target="_blank" rel="noopener noreferrer">Windows ARM</a>?</p>
         </div>
 
         <!-- MACOS -->
@@ -535,8 +536,9 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.4 12.6c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.9-3.5.9-.7 0-1.8-.8-3-.8-1.5 0-3 .9-3.8 2.3-1.6 2.8-.4 7 1.2 9.3.8 1.1 1.7 2.4 3 2.3 1.2-.05 1.6-.8 3-.8s1.8.8 3 .75c1.3-.02 2.1-1.1 2.9-2.3.6-.9.9-1.4 1.3-2.4-2.9-1.1-2.7-3.9-2.7-4.15zM14.1 5.8c.6-.75 1.05-1.8.9-2.8-.9.05-2 .6-2.6 1.35-.55.65-1.05 1.7-.9 2.7 1 .05 2-.55 2.6-1.25z"/></svg>
             <div><div class="name">macOS</div><div class="fmt">.dmg · Apple Silicon + Intel</div></div>
           </div>
-          <a class="dl-btn" href="https://github.com/Thealvarro/dictao/releases/latest" target="_blank" rel="noopener noreferrer">Descargar .dmg</a>
-          <p class="dl-note">Universal: corre en chips Apple Silicon (M1/M2/M3…) e Intel.</p>
+          <a class="dl-btn" data-dl="mac-arm" href="https://github.com/Thealvarro/dictao/releases/download/v1.0.0/Dictao_1.0.0_aarch64.dmg" download>Apple Silicon (M1 o superior)</a>
+          <a class="dl-btn" data-dl="mac-intel" href="https://github.com/Thealvarro/dictao/releases/download/v1.0.0/Dictao_1.0.0_x64.dmg" download style="margin-top:10px">Intel</a>
+          <p class="dl-note">Elige según el chip de tu Mac: Apple Silicon (M1/M2/M3…) o Intel.</p>
         </div>
 
         <!-- LINUX -->
@@ -545,8 +547,8 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c-2 0-3 1.7-3 3.6 0 1.3.2 2 .2 3-.1 1-1 1.9-1.9 3.4-.8 1.4-1.9 2.9-1.9 4.6 0 1.3.9 1.8 1.7 2 .3 1 .8 1.8 2 1.8h5.8c1.2 0 1.7-.8 2-1.8.8-.2 1.7-.7 1.7-2 0-1.7-1.1-3.2-1.9-4.6-.9-1.5-1.8-2.4-1.9-3.4 0-1 .2-1.7.2-3C15 3.7 14 2 12 2zm-1.3 3.6c.4 0 .7.4.7.9s-.3.9-.7.9-.7-.4-.7-.9.3-.9.7-.9zm2.6 0c.4 0 .7.4.7.9s-.3.9-.7.9-.7-.4-.7-.9.3-.9.7-.9z"/></svg>
             <div><div class="name">Linux</div><div class="fmt">.AppImage · .deb</div></div>
           </div>
-          <a class="dl-btn" href="https://github.com/Thealvarro/dictao/releases/latest" target="_blank" rel="noopener noreferrer">Descargar</a>
-          <p class="dl-note">AppImage portátil o paquete .deb para Debian/Ubuntu.</p>
+          <a class="dl-btn" data-dl="linux-appimage" href="https://github.com/Thealvarro/dictao/releases/download/v1.0.0/Dictao_1.0.0_amd64.AppImage" download>Descargar .AppImage</a>
+          <p class="dl-note">Portátil (.AppImage) o paquete <a data-dl="linux-deb" href="https://github.com/Thealvarro/dictao/releases/download/v1.0.0/Dictao_1.0.0_amd64.deb" download>.deb</a> para Debian/Ubuntu. ¿<a href="https://github.com/Thealvarro/dictao/releases/latest" target="_blank" rel="noopener noreferrer">arm64 o rpm</a>?</p>
         </div>
       </div>
 
@@ -652,6 +654,82 @@
       } else if (label) {
         label.textContent = 'Descargar';
       }
+
+      /* ---------- Descarga directa: mapea los assets del último release ---------- */
+      (function initDownloads() {
+        var VER = 'v1.0.0';
+        var BASE = 'https://github.com/Thealvarro/dictao/releases/download/' + VER + '/';
+        // Respaldo estático (v1.0.0): si la API falla, estos href quedan válidos.
+        var FALLBACK = {
+          'windows':        BASE + 'Dictao_1.0.0_x64-setup.exe',
+          'mac-arm':        BASE + 'Dictao_1.0.0_aarch64.dmg',
+          'mac-intel':      BASE + 'Dictao_1.0.0_x64.dmg',
+          'linux-appimage': BASE + 'Dictao_1.0.0_amd64.AppImage',
+          'linux-deb':      BASE + 'Dictao_1.0.0_amd64.deb'
+        };
+        // Regex sobre el nombre del asset → clave de plataforma.
+        var MATCHERS = [
+          { key: 'windows',        re: /x64-setup\.exe$/i },
+          { key: 'mac-arm',        re: /aarch64\.dmg$/i },
+          { key: 'mac-intel',      re: /x64\.dmg$/i },
+          { key: 'linux-appimage', re: /amd64\.AppImage$/i },
+          { key: 'linux-deb',      re: /amd64\.deb$/i }
+        ];
+        // Qué baja el CTA del hero según el OS detectado (Mac → Apple Silicon por defecto).
+        var CTA_KEY = { 'Windows': 'windows', 'macOS': 'mac-arm', 'Linux': 'linux-appimage' };
+        var ctaKey = CTA_KEY[os] || 'windows';
+
+        var cta = document.getElementById('mainCta');
+        var meta = document.getElementById('ctaMeta');
+
+        function archLabel(key) {
+          if (key === 'mac-arm') return 'Apple Silicon';
+          if (key === 'mac-intel') return 'Intel';
+          return '64-bit';
+        }
+
+        function apply(map, ver) {
+          var nodes = document.querySelectorAll('[data-dl]');
+          Array.prototype.forEach.call(nodes, function (el) {
+            var key = el.getAttribute('data-dl');
+            if (map[key]) el.setAttribute('href', map[key]);
+          });
+          if (cta && map[ctaKey]) cta.setAttribute('href', map[ctaKey]);
+          if (meta) meta.textContent = ver + ' · ' + archLabel(ctaKey);
+        }
+
+        // 1) Respaldo inmediato (por si el fetch tarda o falla).
+        apply(FALLBACK, VER);
+
+        // 2) Intento de traer el último release y actualizar a la versión vigente.
+        try {
+          fetch('https://api.github.com/repos/Thealvarro/dictao/releases/latest', {
+            headers: { 'Accept': 'application/vnd.github+json' }
+          })
+            .then(function (res) {
+              if (!res.ok) throw new Error('HTTP ' + res.status);
+              return res.json();
+            })
+            .then(function (data) {
+              if (!data || !Array.isArray(data.assets)) return;
+              var map = {};
+              data.assets.forEach(function (a) {
+                var name = (a && a.name) ? a.name : '';
+                for (var i = 0; i < MATCHERS.length; i++) {
+                  if (!map[MATCHERS[i].key] && MATCHERS[i].re.test(name)) {
+                    map[MATCHERS[i].key] = a.browser_download_url;
+                    break;
+                  }
+                }
+              });
+              // Cada plataforma usa la URL nueva si apareció; si no, conserva el respaldo.
+              var merged = {};
+              for (var k in FALLBACK) merged[k] = map[k] || FALLBACK[k];
+              apply(merged, data.tag_name || VER);
+            })
+            .catch(function () { /* respaldo estático ya aplicado */ });
+        } catch (e) { /* fetch no disponible; respaldo estático ya aplicado */ }
+      })();
 
       /* ---------- Reveal on scroll ---------- */
       var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
