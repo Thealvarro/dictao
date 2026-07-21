@@ -497,17 +497,66 @@ jobs:
           sudo cp -vL "$LIBDIR"/libtranscribe.so* "$LIBDIR"/libggml*.so* /usr/local/lib/ 2>/dev/null || true
           sudo ldconfig
 
+      # tauri-bundler turns on macOS codesigning the moment an Apple signing
+      # env var is PRESENT — even when it is an empty string. On a fork with no
+      # Apple secrets, the static `env:` block below used to set every APPLE_*
+      # to "" (secrets absent -> `${{ ... || '' }}` yields ""), and that empty
+      # APPLE_CERTIFICATE tripped tauri's keychain import: "failed codesign
+      # application: failed to run command security import". The fix is to make
+      # the vars NOT EXIST when the secret is empty: inject each one into
+      # GITHUB_ENV here only if its secret is non-empty. With no secrets the
+      # vars are simply absent and macOS bundles UNSIGNED; once the repo secrets
+      # are populated the vars reappear and signing/notarization work as before.
+      - name: Configure Apple signing env (macOS)
+        if: contains(inputs.platform, 'macos') && inputs.sign-binaries
+        shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          # Append VAR only when its value is non-empty. Use a heredoc with a
+          # unique delimiter so multiline values (base64 certs can be long and
+          # wrapped) round-trip into GITHUB_ENV intact; single-line values work
+          # through the same path.
+          put() {
+            local name="$1" value="$2"
+            [ -n "$value" ] || return 0
+            {
+              printf '%s<<__DICTAO_APPLE_ENV_EOF__\n' "$name"
+              printf '%s\n' "$value"
+              printf '__DICTAO_APPLE_ENV_EOF__\n'
+            } >> "$GITHUB_ENV"
+          }
+          put APPLE_CERTIFICATE "$APPLE_CERTIFICATE"
+          put APPLE_CERTIFICATE_PASSWORD "$APPLE_CERTIFICATE_PASSWORD"
+          put APPLE_ID "$APPLE_ID"
+          put APPLE_ID_PASSWORD "$APPLE_ID_PASSWORD"
+          put APPLE_PASSWORD "$APPLE_PASSWORD"
+          put APPLE_TEAM_ID "$APPLE_TEAM_ID"
+          # APPLE_SIGNING_IDENTITY is derived from the imported certificate
+          # (CERT_ID, set into GITHUB_ENV by the "verify certificate" step),
+          # not from a secret. Only present when the cert import ran.
+          if [ -n "${CERT_ID:-}" ]; then
+            put APPLE_SIGNING_IDENTITY "$CERT_ID"
+          fi
+
       - name: Build with Tauri
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          APPLE_ID: ${{ inputs.sign-binaries && secrets.APPLE_ID || '' }}
-          APPLE_ID_PASSWORD: ${{ inputs.sign-binaries && secrets.APPLE_ID_PASSWORD || '' }}
-          APPLE_PASSWORD: ${{ inputs.sign-binaries && secrets.APPLE_PASSWORD || '' }}
-          APPLE_TEAM_ID: ${{ inputs.sign-binaries && secrets.APPLE_TEAM_ID || '' }}
-          APPLE_CERTIFICATE: ${{ inputs.sign-binaries && secrets.APPLE_CERTIFICATE || '' }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ inputs.sign-binaries && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
-          APPLE_SIGNING_IDENTITY: ${{ inputs.sign-binaries && env.CERT_ID || '' }}
+          # Apple signing/notarization vars (APPLE_ID, APPLE_ID_PASSWORD,
+          # APPLE_PASSWORD, APPLE_TEAM_ID, APPLE_CERTIFICATE,
+          # APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY) are NOT declared
+          # here on purpose: a statically-defined empty var still counts as
+          # "present" and makes tauri-bundler attempt codesign. They are instead
+          # injected conditionally into GITHUB_ENV by the "Configure Apple
+          # signing env (macOS)" step above, so they exist only when their
+          # secret is non-empty.
           AZURE_CLIENT_ID: ${{ inputs.sign-binaries && secrets.AZURE_CLIENT_ID || '' }}
           AZURE_CLIENT_SECRET: ${{ inputs.sign-binaries && secrets.AZURE_CLIENT_SECRET || '' }}
           AZURE_TENANT_ID: ${{ inputs.sign-binaries && secrets.AZURE_TENANT_ID || '' }}
