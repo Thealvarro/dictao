@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>dictao — Tu voz es el prompt. Dictado por voz 100% local y open source</title>
+  <meta name="description" content="Dictao: app de escritorio open source (MIT) para dictar por voz 100% local. Aprietas un atajo, hablas, y el texto aparece donde esté tu cursor. Windows, macOS y Linux. Sin nube, sin cuenta." />
+  <meta name="theme-color" content="#0B0E14" />
+  <meta name="color-scheme" content="dark" />
+
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  <link rel="apple-touch-icon" href="./favicon.svg" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="dictao" />
+  <meta property="og:title" content="dictao — Tu voz es el prompt." />
+  <meta property="og:description" content="Dictado por voz 100% local y open source. Aprietas un atajo, hablas, y el texto aparece donde esté tu cursor. Windows, macOS y Linux." />
+  <meta property="og:image" content="./og.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="dictao — Tu voz es el prompt. Dictado por voz 100% local, open source." />
+  <meta property="og:locale" content="es_LA" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="dictao — Tu voz es el prompt." />
+  <meta name="twitter:description" content="Dictado por voz 100% local y open source. Aprietas un atajo, hablas, y el texto aparece donde esté tu cursor." />
+  <meta name="twitter:image" content="./og.png" />
+  <meta name="twitter:image:alt" content="dictao — Tu voz es el prompt." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --carbon:  #0B0E14;
+      --surface: #111827;
+      --surface-2: #0e141f;
+      --border:  #1F2937;
+      --text:    #E5E7EB;
+      --muted:   #94A3B8;
+      --lime:    #A3E635;
+      --lime-dim:#7fb524;
+      --amber:   #FBBF24;
+      --white:   #F8FAFC;
+      --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+      --font-body: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      --maxw: 1120px;
+      --radius: 14px;
+      --ease: cubic-bezier(.2,.7,.2,1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+    body {
+      background: var(--carbon);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 17px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+      overflow-x: hidden;
+      /* textura de grilla + vignette del terminal */
+      background-image:
+        radial-gradient(1100px 600px at 50% -8%, rgba(163,230,53,.06), transparent 60%),
+        linear-gradient(rgba(31,41,55,.35) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(31,41,55,.35) 1px, transparent 1px);
+      background-size: 100% 100%, 46px 46px, 46px 46px;
+      background-position: 0 0, 0 0, 0 0;
+      background-attachment: fixed, fixed, fixed;
+    }
+
+    ::selection { background: rgba(163,230,53,.28); color: var(--white); }
+
+    a { color: inherit; text-decoration: none; }
+
+    :focus-visible {
+      outline: 2px solid var(--lime);
+      outline-offset: 3px;
+      border-radius: 4px;
+    }
+
+    .wrap { width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+    .mono { font-family: var(--font-mono); }
+    .lime { color: var(--lime); }
+    .amber { color: var(--amber); }
+    .muted { color: var(--muted); }
+
+    /* skip link */
+    .skip {
+      position: absolute; left: -999px; top: 0; z-index: 200;
+      background: var(--lime); color: #0a0a0a; padding: 10px 16px;
+      font-family: var(--font-mono); font-weight: 700; border-radius: 0 0 8px 0;
+    }
+    .skip:focus { left: 0; }
+
+    /* ---------- NAV ---------- */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(11,14,20,.72);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-in { display: flex; align-items: center; justify-content: space-between; height: 62px; }
+    .brand { display: flex; align-items: center; gap: 10px; font-family: var(--font-mono); font-weight: 800; font-size: 20px; letter-spacing: -.02em; }
+    .brand .iso { width: 26px; height: 26px; flex: none; }
+    .brand .wm { color: var(--white); }
+    .brand .wm b { color: var(--lime); font-weight: 800; }
+    .nav-links { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 14px; }
+    .nav-links a { padding: 8px 12px; border-radius: 8px; color: var(--muted); transition: color .18s var(--ease), background .18s var(--ease); }
+    .nav-links a:hover { color: var(--text); background: rgba(255,255,255,.04); }
+    .nav-links a.cta { color: #0a0a0a; background: var(--lime); font-weight: 700; }
+    .nav-links a.cta:hover { background: #b6f24d; color: #0a0a0a; }
+    @media (max-width: 560px) { .nav-links a.ghost { display: none; } }
+
+    /* ---------- SECTIONS ---------- */
+    section { position: relative; }
+    .sec-pad { padding: clamp(64px, 10vw, 120px) 0; }
+    .eyebrow {
+      font-family: var(--font-mono); font-size: 13px; letter-spacing: .12em; text-transform: uppercase;
+      color: var(--lime); display: inline-flex; align-items: center; gap: 8px; margin-bottom: 16px;
+    }
+    .eyebrow::before { content: ""; width: 22px; height: 1px; background: var(--lime); display: inline-block; }
+    h2.title {
+      font-family: var(--font-mono); font-weight: 800; letter-spacing: -.03em;
+      font-size: clamp(1.9rem, 4.4vw, 3rem); line-height: 1.05; color: var(--white);
+    }
+    .sec-intro { max-width: 620px; color: var(--muted); margin-top: 16px; font-size: 18px; }
+
+    /* ---------- HERO ---------- */
+    .hero { padding: clamp(56px, 9vw, 104px) 0 clamp(48px, 7vw, 88px); text-align: center; }
+    .hero .tag-pill {
+      display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 13px;
+      color: var(--muted); border: 1px solid var(--border); background: var(--surface);
+      padding: 6px 14px; border-radius: 999px; margin-bottom: 30px;
+    }
+    .tag-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--lime); box-shadow: 0 0 10px var(--lime); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+    .wordmark {
+      font-family: var(--font-mono); font-weight: 800; letter-spacing: -.05em;
+      font-size: clamp(3.2rem, 15vw, 9rem); line-height: .92; color: var(--white);
+      display: inline-flex; align-items: baseline; justify-content: center;
+    }
+    .wordmark .caret {
+      display: inline-block; width: .62em; height: .82em; background: var(--lime);
+      margin-left: .06em; transform: translateY(.04em);
+      box-shadow: 0 0 22px rgba(163,230,53,.5);
+      animation: blink 1.06s steps(1) infinite;
+    }
+    @keyframes blink { 0%,49%{opacity:1} 50%,100%{opacity:0} }
+
+    .hero .tagline {
+      font-family: var(--font-mono); font-weight: 700; letter-spacing: -.02em;
+      font-size: clamp(1.5rem, 5.2vw, 2.6rem); margin-top: 22px; color: var(--white);
+    }
+    .hero .tagline .u { color: var(--lime); }
+    .hero .subtitle { max-width: 640px; margin: 20px auto 0; color: var(--muted); font-size: clamp(1rem, 2.6vw, 1.18rem); }
+    .hero .subtitle code { font-family: var(--font-mono); color: var(--text); background: var(--surface); border: 1px solid var(--border); padding: 1px 6px; border-radius: 6px; font-size: .92em; }
+
+    .cta-row { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: center; margin-top: 34px; }
+    .btn {
+      font-family: var(--font-mono); font-weight: 700; font-size: 15px;
+      display: inline-flex; align-items: center; gap: 10px; padding: 14px 24px; border-radius: 11px;
+      border: 1px solid transparent; cursor: pointer; transition: transform .16s var(--ease), background .18s var(--ease), box-shadow .18s var(--ease);
+    }
+    .btn-primary { background: var(--lime); color: #08120a; box-shadow: 0 8px 30px -8px rgba(163,230,53,.55); }
+    .btn-primary:hover { background: #b6f24d; transform: translateY(-2px); box-shadow: 0 14px 40px -10px rgba(163,230,53,.6); }
+    .btn-ghost { background: transparent; color: var(--text); border-color: var(--border); }
+    .btn-ghost:hover { border-color: var(--lime); color: var(--white); background: rgba(163,230,53,.06); }
+    .btn svg { width: 18px; height: 18px; }
+    .link-sub { font-family: var(--font-mono); font-size: 14px; color: var(--muted); border-bottom: 1px dashed transparent; transition: color .18s, border-color .18s; }
+    .link-sub:hover { color: var(--lime); border-color: var(--lime); }
+
+    /* ---------- TERMINAL DEMO ---------- */
+    .term {
+      max-width: 760px; margin: 52px auto 0; text-align: left;
+      background: linear-gradient(180deg, var(--surface), var(--surface-2));
+      border: 1px solid var(--border); border-radius: var(--radius);
+      box-shadow: 0 40px 90px -40px rgba(0,0,0,.9), 0 0 0 1px rgba(163,230,53,.05);
+      overflow: hidden;
+    }
+    .term-bar { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--border); background: rgba(255,255,255,.02); }
+    .term-bar .dots { display: flex; gap: 7px; }
+    .term-bar .dots i { width: 12px; height: 12px; border-radius: 50%; display: block; }
+    .term-bar .dots i:nth-child(1){ background:#ff5f57; } .term-bar .dots i:nth-child(2){ background:#febc2e; } .term-bar .dots i:nth-child(3){ background:#28c840; }
+    .term-bar .path { font-family: var(--font-mono); font-size: 12.5px; color: var(--muted); margin-left: 8px; }
+    .term-body { padding: 22px 22px 26px; font-family: var(--font-mono); font-size: clamp(13px, 3.2vw, 15px); line-height: 1.85; }
+    .term-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .term-prompt { color: var(--lime); }
+    .rec { display: inline-flex; align-items: center; gap: 10px; color: var(--muted); }
+    .rec .reddot { width: 9px; height: 9px; border-radius: 50%; background: #ff5f57; box-shadow: 0 0 10px #ff5f57; animation: pulse 1.4s infinite; }
+
+    /* waveform */
+    .wave { display: inline-flex; align-items: center; gap: 3px; height: 26px; }
+    .wave i { width: 3px; height: 8px; background: var(--lime); border-radius: 2px; animation: wv 1.05s ease-in-out infinite; }
+    .wave i:last-child { background: var(--white); }
+    .wave i:nth-child(1){animation-delay:-.9s} .wave i:nth-child(2){animation-delay:-.75s} .wave i:nth-child(3){animation-delay:-.6s}
+    .wave i:nth-child(4){animation-delay:-.45s} .wave i:nth-child(5){animation-delay:-.3s} .wave i:nth-child(6){animation-delay:-.15s}
+    .wave i:nth-child(7){animation-delay:-.05s} .wave i:nth-child(8){animation-delay:-.6s} .wave i:nth-child(9){animation-delay:-.35s}
+    .wave i:nth-child(10){animation-delay:-.2s}
+    @keyframes wv { 0%,100%{ height:7px; opacity:.6 } 50%{ height:24px; opacity:1 } }
+
+    .term-out { margin-top: 14px; color: var(--text); min-height: 3.4em; }
+    .term-out .typed { color: var(--white); }
+    .term-out .tcaret { display: inline-block; width: 8px; height: 1.05em; background: var(--lime); transform: translateY(2px); margin-left: 2px; animation: blink 1.06s steps(1) infinite; }
+    .term-success { margin-top: 14px; color: var(--lime); opacity: 0; transition: opacity .4s var(--ease); }
+    .term-success.on { opacity: 1; }
+    .term-success .arrow { color: var(--muted); }
+
+    /* ---------- STRIP ---------- */
+    .strip { border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); background: rgba(255,255,255,.015); }
+    .strip-in { padding: 22px 24px; text-align: center; font-family: var(--font-mono); font-size: 14px; color: var(--muted); }
+    .strip-in b { color: var(--text); font-weight: 600; }
+    .strip-in .sep { color: var(--lime); margin: 0 4px; }
+
+    /* ---------- FEATURES ---------- */
+    .grid { display: grid; gap: 18px; margin-top: 52px; }
+    .features { grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); }
+    .card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 26px; position: relative; overflow: hidden; transition: transform .2s var(--ease), border-color .2s var(--ease), background .2s var(--ease);
+    }
+    .card::before { content: ""; position: absolute; inset: 0 auto auto 0; width: 100%; height: 2px; background: linear-gradient(90deg, var(--lime), transparent); opacity: 0; transition: opacity .25s var(--ease); }
+    .card:hover { transform: translateY(-4px); border-color: #2b3a4f; background: #121c2b; }
+    .card:hover::before { opacity: 1; }
+    .card .fnum { font-family: var(--font-mono); font-size: 12px; color: var(--muted); letter-spacing: .1em; }
+    .card .ficon { width: 40px; height: 40px; border-radius: 10px; background: rgba(163,230,53,.1); border: 1px solid rgba(163,230,53,.25); display: grid; place-items: center; margin: 14px 0 16px; }
+    .card .ficon svg { width: 20px; height: 20px; stroke: var(--lime); }
+    .card h3 { font-family: var(--font-mono); font-size: 18px; font-weight: 700; color: var(--white); letter-spacing: -.01em; }
+    .card p { color: var(--muted); margin-top: 8px; font-size: 15.5px; }
+
+    /* ---------- VIBE CODERS ---------- */
+    .vibe-grid { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+    .mini-term { background: linear-gradient(180deg, var(--surface), var(--surface-2)); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; transition: transform .2s var(--ease), border-color .2s var(--ease); }
+    .mini-term:hover { transform: translateY(-4px); border-color: #2b3a4f; }
+    .mini-bar { display: flex; gap: 6px; padding: 11px 14px; border-bottom: 1px solid var(--border); }
+    .mini-bar i { width: 10px; height: 10px; border-radius: 50%; background: var(--border); }
+    .mini-bar i:first-child { background: var(--lime); }
+    .mini-body { padding: 20px; font-family: var(--font-mono); font-size: 14px; }
+    .mini-body .cmd { color: var(--lime); }
+    .mini-body .cmd::before { content: "$ "; color: var(--muted); }
+    .mini-body h3 { font-size: 16px; color: var(--white); margin: 14px 0 8px; font-weight: 700; }
+    .mini-body p { font-family: var(--font-body); color: var(--muted); font-size: 15px; }
+
+    /* ---------- HOW ---------- */
+    .steps { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); counter-reset: step; }
+    .step { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; position: relative; }
+    .step .n { font-family: var(--font-mono); font-weight: 800; font-size: 44px; line-height: 1; color: var(--lime); opacity: .9; }
+    .step h3 { font-family: var(--font-mono); font-size: 18px; color: var(--white); margin: 14px 0 8px; letter-spacing: -.01em; }
+    .step p { color: var(--muted); font-size: 15.5px; }
+    .step .conn { display: none; }
+
+    /* ---------- DOWNLOAD ---------- */
+    .dl-wrap { background: linear-gradient(180deg, #0d1420, #0b1019); border: 1px solid var(--border); border-radius: 18px; padding: clamp(30px, 5vw, 52px); margin-top: 40px; text-align: center; }
+    .dl-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-top: 34px; text-align: left; }
+    .dl-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; transition: transform .2s var(--ease), border-color .2s var(--ease); display: flex; flex-direction: column; }
+    .dl-card:hover { transform: translateY(-4px); border-color: var(--lime); }
+    .dl-card .os { display: flex; align-items: center; gap: 12px; }
+    .dl-card .os svg { width: 26px; height: 26px; fill: var(--text); }
+    .dl-card .os .name { font-family: var(--font-mono); font-weight: 700; font-size: 17px; color: var(--white); }
+    .dl-card .fmt { font-family: var(--font-mono); font-size: 12.5px; color: var(--muted); margin-top: 4px; }
+    .dl-card .dl-btn { margin-top: 18px; font-family: var(--font-mono); font-weight: 700; font-size: 14px; text-align: center; padding: 11px; border-radius: 9px; background: rgba(163,230,53,.12); color: var(--lime); border: 1px solid rgba(163,230,53,.3); transition: background .18s, color .18s; }
+    .dl-card:hover .dl-btn { background: var(--lime); color: #08120a; }
+    .dl-note { font-size: 13px; color: var(--muted); margin-top: 12px; line-height: 1.55; }
+    .dl-note a { color: var(--lime); border-bottom: 1px dashed var(--lime); }
+    .reqs { font-family: var(--font-mono); font-size: 12.5px; color: #6b7686; margin-top: 26px; }
+
+    /* ---------- FAQ ---------- */
+    .faq { max-width: 780px; margin: 44px auto 0; display: grid; gap: 12px; }
+    details { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; transition: border-color .2s var(--ease); }
+    details[open] { border-color: #2b3a4f; }
+    summary { list-style: none; cursor: pointer; padding: 20px 22px; display: flex; align-items: center; justify-content: space-between; gap: 16px; font-family: var(--font-mono); font-weight: 600; font-size: 16px; color: var(--white); }
+    summary::-webkit-details-marker { display: none; }
+    summary .q::before { content: "> "; color: var(--lime); }
+    summary .chev { width: 18px; height: 18px; flex: none; color: var(--lime); transition: transform .22s var(--ease); }
+    details[open] summary .chev { transform: rotate(90deg); }
+    details .ans { padding: 0 22px 22px; color: var(--muted); font-size: 15.5px; }
+    details .ans strong { color: var(--text); }
+
+    /* ---------- FOOTER ---------- */
+    footer { border-top: 1px solid var(--border); padding: 48px 0 40px; margin-top: clamp(48px, 8vw, 96px); }
+    .foot-in { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; justify-content: space-between; }
+    .foot-brand { display: flex; align-items: center; gap: 10px; font-family: var(--font-mono); font-weight: 800; font-size: 20px; }
+    .foot-brand .iso { width: 24px; height: 24px; }
+    .foot-brand .wm { color: var(--white); } .foot-brand .wm b { color: var(--lime); }
+    .foot-links { display: flex; flex-direction: column; gap: 8px; font-family: var(--font-mono); font-size: 14px; }
+    .foot-links a { color: var(--muted); transition: color .18s; }
+    .foot-links a:hover { color: var(--lime); }
+    .foot-fork { max-width: 340px; color: var(--muted); font-size: 14px; line-height: 1.6; }
+    .foot-fork a { color: var(--text); border-bottom: 1px dashed var(--border); }
+    .foot-fork a:hover { color: var(--lime); border-color: var(--lime); }
+    .foot-bottom { margin-top: 34px; padding-top: 22px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center; }
+    .foot-bottom .lic { font-family: var(--font-mono); font-size: 12.5px; color: #5a667a; }
+    .credit { font-size: 12.5px; color: #6b7686; }
+    .credit a { color: #8b97ab; transition: color .18s; }
+    .credit a:hover { color: var(--lime); }
+
+    /* ---------- REVEAL ---------- */
+    .reveal { opacity: 0; transform: translateY(18px); transition: opacity .6s var(--ease), transform .6s var(--ease); }
+    .reveal.in { opacity: 1; transform: none; }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+      .reveal { opacity: 1; transform: none; }
+      .wordmark .caret, .term-out .tcaret { opacity: 1 !important; }
+      .term-success { opacity: 1; }
+    }
+
+    @media (max-width: 640px) {
+      body { font-size: 16px; }
+      .sec-intro { font-size: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#descargar">Saltar a descargas</a>
+
+  <!-- isotipo reutilizable -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="iso" viewBox="0 0 48 48">
+      <path d="M11 15 L19 24 L11 33" fill="none" stroke="#A3E635" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="25" y="15" width="3.6" height="18" rx="1.8" fill="#A3E635"/>
+      <rect x="31" y="10" width="3.6" height="28" rx="1.8" fill="#A3E635"/>
+      <rect x="37" y="18" width="3.6" height="12" rx="1.8" fill="#F8FAFC"/>
+    </symbol>
+  </svg>
+
+  <!-- ============ NAV ============ -->
+  <nav>
+    <div class="wrap nav-in">
+      <a class="brand" href="#top" aria-label="dictao — inicio">
+        <svg class="iso" aria-hidden="true"><use href="#iso"/></svg>
+        <span class="wm">dicta<b>o</b></span>
+      </a>
+      <div class="nav-links">
+        <a class="ghost" href="https://github.com/Thealvarro/dictao" target="_blank" rel="noopener noreferrer">GitHub</a>
+        <a class="cta" href="#descargar">Descargar</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ============ HERO ============ -->
+  <header id="top" class="hero wrap">
+    <span class="tag-pill mono"><span class="dot"></span> 100% local · open source · MIT</span>
+
+    <h1 class="wordmark" aria-label="dictao">dictao<span class="caret" aria-hidden="true"></span></h1>
+
+    <p class="tagline">Tu voz es <span class="u">el prompt.</span></p>
+
+    <p class="subtitle">Dictas, y el texto aparece escrito donde esté tu cursor. En <code>Cursor</code>, en <code>Claude&nbsp;Code</code>, en el terminal, donde sea. Tu voz no sale de tu máquina.</p>
+
+    <div class="cta-row">
+      <a class="btn btn-primary" id="mainCta" href="https://github.com/Thealvarro/dictao/releases/latest" target="_blank" rel="noopener noreferrer">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0l4-4m-4 4l-4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+        <span id="mainCtaLabel">Descargar para Windows</span>
+      </a>
+      <a class="link-sub" href="#descargar">otras plataformas →</a>
+    </div>
+
+    <!-- DEMO TERMINAL -->
+    <div class="term" role="img" aria-label="Demostración: dictas una frase y aparece escrita sola en un terminal.">
+      <div class="term-bar">
+        <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="path">~/proyecto — dictao</span>
+      </div>
+      <div class="term-body">
+        <div class="term-row">
+          <span class="rec"><span class="reddot" aria-hidden="true"></span> grabando</span>
+          <span class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+          <span class="muted" style="font-size:12px">· hablas 8s</span>
+        </div>
+        <div class="term-out">
+          <span class="term-prompt">&gt;&nbsp;</span><span class="typed" id="typed"></span><span class="tcaret" aria-hidden="true"></span>
+        </div>
+        <div class="term-success" id="ok"><span class="arrow">↳</span> pegado donde estaba el cursor · <span class="muted">sin tocar el teclado</span></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ STRIP ============ -->
+  <div class="strip">
+    <div class="strip-in mono">
+      Funciona donde escribes:
+      <b>Cursor</b><span class="sep">·</span><b>Claude Code</b><span class="sep">·</span><b>VS Code</b><span class="sep">·</span><b>Terminal</b><span class="sep">·</span><b>Slack</b><span class="sep">·</span><b>donde sea</b>
+    </div>
+  </div>
+
+  <!-- ============ FEATURES ============ -->
+  <section class="sec-pad wrap">
+    <div class="reveal">
+      <span class="eyebrow">// por qué dictao</span>
+      <h2 class="title">Dictado serio, sin<br>letra chica.</h2>
+      <p class="sec-intro">Local de verdad. Rápido de verdad. Sin cuenta, sin nube, sin sorpresas en la factura.</p>
+    </div>
+
+    <div class="grid features">
+      <article class="card reveal">
+        <span class="fnum">01</span>
+        <div class="ficon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l7 4v5c0 4.5-3 8-7 11-4-3-7-6.5-7-11V6z"/><path d="M9 12l2 2 4-4"/></svg></div>
+        <h3>100% local y privado</h3>
+        <p>Tu voz no sale de tu máquina. Punto. Sin nube, sin servidores ajenos, sin telemetría escondida.</p>
+      </article>
+
+      <article class="card reveal">
+        <span class="fnum">02</span>
+        <div class="ficon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/></svg></div>
+        <h3>Funciona en cualquier app</h3>
+        <p>Escribe donde esté el cursor: editor, terminal, chat, formulario. Si tiene cursor de texto, sirve.</p>
+      </article>
+
+      <article class="card reveal">
+        <span class="fnum">03</span>
+        <div class="ficon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3L4 14h6l-1 7 9-11h-6z"/></svg></div>
+        <h3>Un atajo y listo</h3>
+        <p>Aprietas tu atajo global, hablas, sueltas. El texto queda pegado. Configúralo a la tecla que quieras.</p>
+      </article>
+
+      <article class="card reveal">
+        <span class="fnum">04</span>
+        <div class="ficon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 9h6v6H9z"/></svg></div>
+        <h3>Modelos de verdad</h3>
+        <p>Whisper y Parakeet corriendo en tu GPU o tu CPU. Precisión seria, no un autocompletar cualquiera.</p>
+      </article>
+
+      <article class="card reveal">
+        <span class="fnum">05</span>
+        <div class="ficon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.5 3.5 6 3.5 9s-1 6.5-3.5 9c-2.5-2.5-3.5-6-3.5-9s1-6.5 3.5-9z"/></svg></div>
+        <h3>Habla tu idioma</h3>
+        <p>Español por defecto y +20 idiomas más. Entiende tu acento latino, no solo el "neutro" de manual.</p>
+      </article>
+
+      <article class="card reveal">
+        <span class="fnum">06</span>
+        <div class="ficon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 00-2 2v3M16 3h3a2 2 0 012 2v3M8 21H5a2 2 0 01-2-2v-3M16 21h3a2 2 0 002-2v-3"/><circle cx="12" cy="12" r="2.5"/></svg></div>
+        <h3>Gratis y open source</h3>
+        <p>Licencia MIT. Sin cuenta, sin login, sin suscripción. El código está ahí para que lo revises tú mismo.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ============ VIBE CODERS ============ -->
+  <section class="sec-pad wrap">
+    <div class="reveal">
+      <span class="eyebrow">// para vibe coders</span>
+      <h2 class="title">Programas hablando.<br>Ya no tipeando.</h2>
+      <p class="sec-intro">Dictas el prompt en 8 segundos en vez de tipearlo en 40. El flow no se corta.</p>
+    </div>
+
+    <div class="grid vibe-grid">
+      <div class="mini-term reveal">
+        <div class="mini-bar" aria-hidden="true"><i></i><i></i><i></i></div>
+        <div class="mini-body">
+          <span class="cmd">dictar-prompt</span>
+          <h3>Prompts a Cursor y Claude</h3>
+          <p>Deja de tipear párrafos de contexto. Díctaselos al agente y sigue pensando en el problema, no en el teclado.</p>
+        </div>
+      </div>
+
+      <div class="mini-term reveal">
+        <div class="mini-bar" aria-hidden="true"><i></i><i></i><i></i></div>
+        <div class="mini-body">
+          <span class="cmd">git commit -m</span>
+          <h3>Commits y documentación</h3>
+          <p>Describe el commit hablando. Documenta la función sin soltar el flow ni cambiar de ventana.</p>
+        </div>
+      </div>
+
+      <div class="mini-term reveal">
+        <div class="mini-bar" aria-hidden="true"><i></i><i></i><i></i></div>
+        <div class="mini-body">
+          <span class="cmd">echo "$idea"</span>
+          <h3>Pensar en voz alta</h3>
+          <p>¿Se te ocurrió algo a mitad de un bug? Dilo y queda escrito antes de que se te escape de la cabeza.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ HOW ============ -->
+  <section class="sec-pad wrap">
+    <div class="reveal">
+      <span class="eyebrow">// cómo funciona</span>
+      <h2 class="title">Tres pasos y a<br>dictar.</h2>
+    </div>
+
+    <div class="grid steps">
+      <div class="step reveal">
+        <div class="n">1</div>
+        <h3>Descarga e instala</h3>
+        <p>Un instalador para tu sistema operativo. Sin crear cuentas ni configuración eterna.</p>
+      </div>
+      <div class="step reveal">
+        <div class="n">2</div>
+        <h3>Elige tu modelo</h3>
+        <p>Whisper o Parakeet. Se descarga una sola vez y queda guardado en tu máquina.</p>
+      </div>
+      <div class="step reveal">
+        <div class="n">3</div>
+        <h3>Aprieta el atajo y habla</h3>
+        <p>Tu atajo global, hablas, y el texto cae solo donde esté el cursor. Así de simple.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ DESCARGA ============ -->
+  <section id="descargar" class="sec-pad wrap">
+    <div class="dl-wrap reveal">
+      <span class="eyebrow" style="justify-content:center">// descarga</span>
+      <h2 class="title">Bájala y empieza a<br>dictar.</h2>
+      <p class="sec-intro" style="margin-left:auto;margin-right:auto;text-align:center">Gratis y open source, como debe ser. Elige tu sistema.</p>
+
+      <div class="dl-grid">
+        <!-- WINDOWS -->
+        <div class="dl-card">
+          <div class="os">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5.5l7.5-1v7.2H3zM11.2 4.4L21 3v9.7h-9.8zM3 12.9h7.5v6.6L3 18.5zM11.2 12.9H21V21l-9.8-1.4z"/></svg>
+            <div><div class="name">Windows</div><div class="fmt">.exe · 64-bit</div></div>
+          </div>
+          <a class="dl-btn" href="https://github.com/Thealvarro/dictao/releases/latest" target="_blank" rel="noopener noreferrer">Descargar .exe</a>
+          <p class="dl-note">Windows puede mostrar aviso de SmartScreen: el binario aún no está firmado con certificado comercial. El código es abierto, <a href="https://github.com/Thealvarro/dictao" target="_blank" rel="noopener noreferrer">revísalo tú mismo</a>.</p>
+        </div>
+
+        <!-- MACOS -->
+        <div class="dl-card">
+          <div class="os">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.4 12.6c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.9-3.5.9-.7 0-1.8-.8-3-.8-1.5 0-3 .9-3.8 2.3-1.6 2.8-.4 7 1.2 9.3.8 1.1 1.7 2.4 3 2.3 1.2-.05 1.6-.8 3-.8s1.8.8 3 .75c1.3-.02 2.1-1.1 2.9-2.3.6-.9.9-1.4 1.3-2.4-2.9-1.1-2.7-3.9-2.7-4.15zM14.1 5.8c.6-.75 1.05-1.8.9-2.8-.9.05-2 .6-2.6 1.35-.55.65-1.05 1.7-.9 2.7 1 .05 2-.55 2.6-1.25z"/></svg>
+            <div><div class="name">macOS</div><div class="fmt">.dmg · Apple Silicon + Intel</div></div>
+          </div>
+          <a class="dl-btn" href="https://github.com/Thealvarro/dictao/releases/latest" target="_blank" rel="noopener noreferrer">Descargar .dmg</a>
+          <p class="dl-note">Universal: corre en chips Apple Silicon (M1/M2/M3…) e Intel.</p>
+        </div>
+
+        <!-- LINUX -->
+        <div class="dl-card">
+          <div class="os">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c-2 0-3 1.7-3 3.6 0 1.3.2 2 .2 3-.1 1-1 1.9-1.9 3.4-.8 1.4-1.9 2.9-1.9 4.6 0 1.3.9 1.8 1.7 2 .3 1 .8 1.8 2 1.8h5.8c1.2 0 1.7-.8 2-1.8.8-.2 1.7-.7 1.7-2 0-1.7-1.1-3.2-1.9-4.6-.9-1.5-1.8-2.4-1.9-3.4 0-1 .2-1.7.2-3C15 3.7 14 2 12 2zm-1.3 3.6c.4 0 .7.4.7.9s-.3.9-.7.9-.7-.4-.7-.9.3-.9.7-.9zm2.6 0c.4 0 .7.4.7.9s-.3.9-.7.9-.7-.4-.7-.9.3-.9.7-.9z"/></svg>
+            <div><div class="name">Linux</div><div class="fmt">.AppImage · .deb</div></div>
+          </div>
+          <a class="dl-btn" href="https://github.com/Thealvarro/dictao/releases/latest" target="_blank" rel="noopener noreferrer">Descargar</a>
+          <p class="dl-note">AppImage portátil o paquete .deb para Debian/Ubuntu.</p>
+        </div>
+      </div>
+
+      <p class="reqs">Mínimo: 4 GB RAM · GPU NVIDIA opcional (acelera, no es obligatoria) · Windows 10+ / macOS 12+ / Linux moderno</p>
+    </div>
+  </section>
+
+  <!-- ============ FAQ ============ -->
+  <section class="sec-pad wrap">
+    <div class="reveal">
+      <span class="eyebrow">// preguntas</span>
+      <h2 class="title">Lo que te estás<br>preguntando.</h2>
+    </div>
+
+    <div class="faq">
+      <details class="reveal">
+        <summary><span class="q">¿Mi voz se sube a algún servidor?</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></summary>
+        <div class="ans">No. <strong>Nada.</strong> Todo el procesamiento pasa dentro de tu máquina: el modelo transcribe local y el texto se pega directo. No hay nube, no hay API externa, no hay telemetría. Tu audio nunca toca internet.</div>
+      </details>
+
+      <details class="reveal">
+        <summary><span class="q">¿Cuánto pesa y qué necesito?</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></summary>
+        <div class="ans">La app es liviana. El peso real es el <strong>modelo</strong>, que descargas una sola vez (desde ~150 MB hasta ~1.5 GB según cuál elijas). Con <strong>4 GB de RAM</strong> ya corre; una GPU NVIDIA lo acelera bastante pero no es obligatoria — en CPU también anda.</div>
+      </details>
+
+      <details class="reveal">
+        <summary><span class="q">¿Entiende mi acento?</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></summary>
+        <div class="ans">Sí. Whisper es <strong>multiacento</strong>: chileno, mexicano, caribeño, rioplatense, andino, colombiano... Fue entrenado con voz real de todas partes, no con el español de laboratorio. Habla normal, te va a entender.</div>
+      </details>
+
+      <details class="reveal">
+        <summary><span class="q">¿Es gratis en serio?</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></summary>
+        <div class="ans">Sí, de verdad. Licencia <strong>MIT</strong>, open source. Sin cuenta, sin trial que caduca, sin "plan pro", sin tarjeta. Lo descargas y es tuyo. Si quieres, hasta puedes leer y modificar el código.</div>
+      </details>
+
+      <details class="reveal">
+        <summary><span class="q">¿En qué se diferencia de dictarle al ChatGPT?</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></summary>
+        <div class="ans">Que el dictado de ChatGPT escribe <strong>dentro de su app</strong>, en su cajita de chat, y manda tu audio a la nube. Dictao escribe en <strong>cualquier app</strong> — tu editor, el terminal, Slack, un formulario — <strong>local</strong> y <strong>sin cuenta</strong>. Es dictado para todo tu sistema, no para una sola ventana.</div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ============ FOOTER ============ -->
+  <footer>
+    <div class="wrap">
+      <div class="foot-in">
+        <div>
+          <div class="foot-brand">
+            <svg class="iso" aria-hidden="true"><use href="#iso"/></svg>
+            <span class="wm">dicta<b>o</b></span>
+          </div>
+          <p class="foot-fork" style="margin-top:16px">
+            dictao es un fork con cariño de <a href="https://github.com/cjpais/Handy" target="_blank" rel="noopener noreferrer">Handy, de CJ&nbsp;Pais</a> (MIT). Mismo espíritu: dictado local, libre y sin vueltas.
+          </p>
+        </div>
+
+        <div class="foot-links">
+          <a href="#descargar">Descargar</a>
+          <a href="https://github.com/Thealvarro/dictao" target="_blank" rel="noopener noreferrer">Código en GitHub</a>
+          <a href="https://github.com/Thealvarro/dictao/releases/latest" target="_blank" rel="noopener noreferrer">Últimos releases</a>
+          <a href="https://github.com/cjpais/Handy" target="_blank" rel="noopener noreferrer">Proyecto original: Handy</a>
+        </div>
+      </div>
+
+      <div class="foot-bottom">
+        <span class="lic">Licencia MIT · Sin telemetría · Sin cuenta</span>
+        <span class="credit">Desarrollado por <a href="https://alvarocofre.dev" target="_blank" rel="noopener noreferrer">SICS</a></span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      "use strict";
+
+      /* ---------- Easter egg de consola (firma de Álvaro) ---------- */
+      console.log('%c¿Qué buscas por acá? 👀','font-size:20px;color:#59B9C7;font-weight:bold');
+      console.log('%cNo hay WordPress, no hay template. Si llegaste hasta acá, escríbeme: alvarocofre.dev','font-size:14px;color:#2B313F');
+
+      /* ---------- Detección de OS (robusta, con fallback) ---------- */
+      function detectOS() {
+        try {
+          var uad = navigator.userAgentData;
+          if (uad && uad.platform) {
+            var p = uad.platform.toLowerCase();
+            if (p.indexOf('win') !== -1) return 'Windows';
+            if (p.indexOf('mac') !== -1) return 'macOS';
+            if (p.indexOf('linux') !== -1 || p.indexOf('android') !== -1) return 'Linux';
+          }
+        } catch (e) { /* userAgentData no soportado, seguimos al fallback */ }
+
+        var s = ((navigator.userAgent || '') + ' ' + (navigator.platform || '')).toLowerCase();
+        if (s.indexOf('win') !== -1) return 'Windows';
+        if (s.indexOf('mac') !== -1 || s.indexOf('iphone') !== -1 || s.indexOf('ipad') !== -1) return 'macOS';
+        if (s.indexOf('linux') !== -1 || s.indexOf('android') !== -1) return 'Linux';
+        return null;
+      }
+
+      var os = detectOS();
+      var label = document.getElementById('mainCtaLabel');
+      if (label && os) {
+        label.textContent = 'Descargar para ' + os;
+      } else if (label) {
+        label.textContent = 'Descargar';
+      }
+
+      /* ---------- Reveal on scroll ---------- */
+      var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      var reveals = document.querySelectorAll('.reveal');
+      if (reduce || !('IntersectionObserver' in window)) {
+        reveals.forEach(function (el) { el.classList.add('in'); });
+      } else {
+        var io = new IntersectionObserver(function (entries) {
+          entries.forEach(function (en) {
+            if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); }
+          });
+        }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+        reveals.forEach(function (el) { io.observe(el); });
+      }
+
+      /* ---------- Typewriter del terminal demo ---------- */
+      var typed = document.getElementById('typed');
+      var ok = document.getElementById('ok');
+      var prompts = [
+        'refactoriza el componente de auth para usar el hook useSession y agrégale manejo de errores con toast',
+        'escribe el commit: fix del race condition en el polling del dashboard',
+        'documenta esta función explicando qué recibe, qué devuelve y por qué existe'
+      ];
+
+      if (typed) {
+        if (reduce) {
+          typed.textContent = prompts[0];
+          if (ok) ok.classList.add('on');
+        } else {
+          var pi = 0;
+          function typeLine() {
+            var text = prompts[pi];
+            var i = 0;
+            if (ok) ok.classList.remove('on');
+            typed.textContent = '';
+            (function typeChar() {
+              if (i <= text.length) {
+                typed.textContent = text.slice(0, i);
+                i++;
+                setTimeout(typeChar, 26 + Math.random() * 34);
+              } else {
+                if (ok) ok.classList.add('on');
+                setTimeout(eraseLine, 2600);
+              }
+            })();
+          }
+          function eraseLine() {
+            var text = typed.textContent;
+            var i = text.length;
+            (function eraseChar() {
+              if (i >= 0) {
+                typed.textContent = text.slice(0, i);
+                i -= 2;
+                setTimeout(eraseChar, 14);
+              } else {
+                pi = (pi + 1) % prompts.length;
+                setTimeout(typeLine, 420);
+              }
+            })();
+          }
+          setTimeout(typeLine, 700);
+        }
+      }
+    })();
+  </script>
+</body>
+</html>

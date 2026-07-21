@@ -2446,8 +2446,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "handy"
-version = "0.9.4"
+name = "dictao"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "chrono",

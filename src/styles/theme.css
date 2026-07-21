@@ -1,22 +1,32 @@
-/* Handy Colors */
+/* Dictao Colors */
 
 :root {
   /* Palette source of truth. Each themed color is defined once as a
      light/dark pair; the active tokens below and the `data-theme` overrides
-     in App.css reference these, so a hex value lives in exactly one place. */
-  --light-color-text: #0f0f0f;
-  --light-color-background: #fbfbfb;
-  --light-color-logo-primary: #faa2ca;
-  --light-color-logo-stroke: #382731;
+     in App.css reference these, so a hex value lives in exactly one place.
 
-  --dark-color-text: #fbfbfb;
-  --dark-color-background: #2c2b29;
-  --dark-color-logo-primary: #f28cbb;
-  --dark-color-logo-stroke: #fad1ed;
+     Dictao palette: carbón + lima. In dark the accent is vibrant lime
+     (#A3E635); in light it's a deeper lime (#4D7C0F) that keeps AA contrast
+     on the near-white background. `logo-primary` is the lime accent (the
+     cursor block in the wordmark, dots, waveform, spinners); `logo-stroke`
+     is the neutral, readable wordmark color. */
+  --light-color-text: #111827;
+  --light-color-background: #f8fafc;
+  --light-color-logo-primary: #4d7c0f;
+  --light-color-logo-stroke: #111827;
+  --light-color-on-accent: #f8fafc;
 
-  /* Tokens that do not change between light and dark */
-  --color-background-ui: #da5893;
-  --color-text-stroke: #f6f6f6;
+  --dark-color-text: #e5e7eb;
+  --dark-color-background: #0b0e14;
+  --dark-color-logo-primary: #a3e635;
+  --dark-color-logo-stroke: #e5e7eb;
+  --dark-color-on-accent: #0b0e14;
+
+  /* Tokens that do not change between light and dark. background-ui is the
+     solid-button fill: a deep lime that keeps white button text legible (AA)
+     in both themes. text-stroke is pure white. */
+  --color-background-ui: #4d7c0f;
+  --color-text-stroke: #f8fafc;
   --color-mid-gray: #808080;
 
   /* Active palette — defaults to light, follows the OS via the media query
@@ -25,6 +35,7 @@
   --color-background: var(--light-color-background);
   --color-logo-primary: var(--light-color-logo-primary);
   --color-logo-stroke: var(--light-color-logo-stroke);
+  --color-on-accent: var(--light-color-on-accent);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -33,5 +44,6 @@
     --color-background: var(--dark-color-background);
     --color-logo-primary: var(--dark-color-logo-primary);
     --color-logo-stroke: var(--dark-color-logo-stroke);
+    --color-on-accent: var(--dark-color-on-accent);
   }
 }

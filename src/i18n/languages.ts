@@ -16,10 +16,10 @@ export const LANGUAGE_METADATA: Record<
     direction?: "ltr" | "rtl";
   }
 > = {
-  en: { name: "English", nativeName: "English", priority: 1 },
-  zh: { name: "Simplified Chinese", nativeName: "简体中文", priority: 2 },
-  "zh-TW": { name: "Traditional Chinese", nativeName: "繁體中文", priority: 3 },
-  es: { name: "Spanish", nativeName: "Español", priority: 4 },
+  es: { name: "Spanish", nativeName: "Español", priority: 1 },
+  en: { name: "English", nativeName: "English", priority: 2 },
+  zh: { name: "Simplified Chinese", nativeName: "简体中文", priority: 3 },
+  "zh-TW": { name: "Traditional Chinese", nativeName: "繁體中文", priority: 4 },
   fr: { name: "French", nativeName: "Français", priority: 5 },
   de: { name: "German", nativeName: "Deutsch", priority: 6 },
   ja: { name: "Japanese", nativeName: "日本語", priority: 7 },

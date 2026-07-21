@@ -71,12 +71,12 @@ const getSupportedLanguage = (
   return supported ? supported.code : null;
 };
 
-// Initialize i18n with English as default
-// Language will be synced from settings after init
+// Initialize i18n with Spanish as default (Dictao ships for LATAM first).
+// The system locale / saved preference still wins via syncLanguageFromSettings.
 i18n.use(initReactI18next).init({
   resources,
-  lng: "en",
-  fallbackLng: "en",
+  lng: "es",
+  fallbackLng: "es",
   interpolation: {
     escapeValue: false, // React already escapes values
   },
