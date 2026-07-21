@@ -30,9 +30,10 @@
   --ov-pill-w: 184px; /* base width / Live pill before it opens or collapses */
   --ov-work-w: 216px; /* working pill (transcribing / polishing) -- wide enough to
                          center longer labels; shared by Live (collapsed) + minimal */
-  --ov-open-w: 392px; /* Live panel, expanded */
+  --ov-open-w: 452px; /* Live panel, expanded (wider so live text has more room) */
   --ov-base-h: 40px; /* control-row height (.sbase) */
-  --ov-cap-max-h: 64px; /* max height of the scrolling live-text region */
+  --ov-cap-max-h: 148px; /* max height of the scrolling live-text region (~7 lines
+                            at 15px/1.35); keep overlay.rs OVERLAY_STREAM_HEIGHT in sync */
 }
 @media (prefers-color-scheme: dark) {
   :root {

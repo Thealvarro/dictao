@@ -8,7 +8,31 @@ use std::time::{Duration, Instant};
 use tauri::{AppHandle, Manager};
 
 const DEBOUNCE: Duration = Duration::from_millis(30);
+
+// How long a push-to-talk release is deferred, waiting for a cancelling
+// re-press, before it actually stops recording.
+//
+// X11 (rdev path): holding the key emits a burst of synthesized release/press
+// pairs only a few ms apart (issue #1539); a short window coalesces them.
+#[cfg(not(target_os = "windows"))]
 const RELEASE_GRACE: Duration = Duration::from_millis(50);
+
+// Windows (handy-keys path): while a push-to-talk combo is held, the blocking
+// low-level keyboard hook reconciles its tracked modifiers against
+// GetAsyncKeyState on every key event — including every auto-repeat of the
+// held key, which fires many times a second. A transient GetAsyncKeyState
+// misread of the still-held modifier makes handy-keys emit a spurious modifier
+// "release", which HotkeyManager reports as HotkeyState::Released — cutting the
+// recording even though nothing was let go (toggle mode is immune because it
+// ignores releases). The key keeps auto-repeating, so a recovering press
+// arrives one keyboard-repeat period later — up to ~400ms at the slowest
+// Windows repeat rate — and cancels the deferred release. The window must span
+// that period. Cost: a *genuine* release is held this long before recording
+// stops; the trailing audio is trimmed by the VAD, so the transcript is
+// unaffected, but stop feedback lags by up to this much, and a deliberate
+// release+re-press faster than this coalesces into one recording.
+#[cfg(target_os = "windows")]
+const RELEASE_GRACE: Duration = Duration::from_millis(500);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum PttAction {
@@ -517,5 +541,192 @@ mod tests {
             "a genuine release should stop recording exactly once"
         );
         assert_eq!(result.stage, SimStage::Processing);
+    }
+
+    // ---------------------------------------------------------------------
+    // Windows regression coverage: the handy-keys reconcile glitch.
+    //
+    // On Windows the app drives push-to-talk through handy-keys with a
+    // blocking low-level keyboard hook. While a combo (default Ctrl+Space) is
+    // held, the hook reconciles its tracked modifiers against GetAsyncKeyState
+    // on every key event, and the held key keeps auto-repeating, so the
+    // reconcile runs many times a second. A transient GetAsyncKeyState misread
+    // of the still-held modifier makes handy-keys emit a spurious modifier
+    // release, surfaced to the coordinator as a push-to-talk release even
+    // though nothing was let go — the reported "it cuts off as if I stopped
+    // pressing" bug. Toggle mode never sees it because it ignores releases.
+    //
+    // Unlike the X11 burst (release/press pairs a few ms apart), the recovering
+    // press here lands a full keyboard-repeat period later (tens to hundreds of
+    // ms). `simulate_timed` mirrors the coordinator loop with an explicit clock
+    // and a parameterised grace window, so the tests show that a wide Windows
+    // grace coalesces the glitch while the old 50ms window did not — and that a
+    // genuine release still stops recording.
+    // ---------------------------------------------------------------------
+
+    /// Fire a deferred release whose grace window has elapsed by `now`
+    /// (the coordinator's `RecvTimeoutError::Timeout` arm).
+    fn fire_if_expired(
+        now: u64,
+        pending: &mut Option<String>,
+        pending_deadline: u64,
+        stage: &mut SimStage,
+        stops: &mut u32,
+    ) {
+        if pending.is_some() && now >= pending_deadline {
+            if let Some(pb) = pending.take() {
+                if *stage == SimStage::Recording && pb == BINDING {
+                    *stage = SimStage::Processing;
+                    *stops += 1;
+                }
+            }
+        }
+    }
+
+    /// Timed mirror of the coordinator loop for a single push-to-talk binding,
+    /// driving the real `classify_ptt_event`. Events carry an absolute
+    /// millisecond timestamp; a deferred release fires when its `grace_ms`
+    /// window elapses — either because a later event's timestamp is past the
+    /// deadline, or, for a trailing release with no following event, when the
+    /// sequence ends.
+    fn simulate_timed(events: &[(u64, Ev)], grace_ms: u64) -> SimResult {
+        let mut stage = SimStage::Idle;
+        let mut pending: Option<String> = None;
+        let mut pending_deadline: u64 = 0;
+        let mut last_press_ms: Option<u64> = None;
+        let mut starts = 0u32;
+        let mut stops = 0u32;
+        let debounce_ms = DEBOUNCE.as_millis() as u64;
+
+        for &(now, ev) in events {
+            fire_if_expired(now, &mut pending, pending_deadline, &mut stage, &mut stops);
+
+            match ev {
+                Ev::Grace => {
+                    if let Some(pb) = pending.take() {
+                        if stage == SimStage::Recording && pb == BINDING {
+                            stage = SimStage::Processing;
+                            stops += 1;
+                        }
+                    }
+                }
+                Ev::Press | Ev::Release => {
+                    let is_pressed = matches!(ev, Ev::Press);
+                    let recording_binding = if stage == SimStage::Recording {
+                        Some(BINDING)
+                    } else {
+                        None
+                    };
+
+                    match classify_ptt_event(
+                        pending.as_deref(),
+                        is_pressed,
+                        true, // push_to_talk
+                        BINDING,
+                        recording_binding,
+                    ) {
+                        PttAction::CancelRelease => {
+                            pending = None;
+                            continue;
+                        }
+                        PttAction::DeferRelease => {
+                            pending = Some(BINDING.to_string());
+                            pending_deadline = now + grace_ms;
+                            continue;
+                        }
+                        PttAction::Passthrough => {}
+                    }
+
+                    if is_pressed {
+                        if last_press_ms.is_some_and(|t| now - t < debounce_ms) {
+                            continue;
+                        }
+                        last_press_ms = Some(now);
+                    }
+
+                    if is_pressed && stage == SimStage::Idle {
+                        stage = SimStage::Recording;
+                        starts += 1;
+                    } else if !is_pressed && stage == SimStage::Recording {
+                        stage = SimStage::Processing;
+                        stops += 1;
+                    }
+                }
+            }
+        }
+
+        // Any release still pending when the burst ends eventually fires.
+        if let Some(pb) = pending.take() {
+            if stage == SimStage::Recording && pb == BINDING {
+                stage = SimStage::Processing;
+                stops += 1;
+            }
+        }
+
+        SimResult {
+            starts,
+            stops,
+            stage,
+        }
+    }
+
+    /// The reconcile glitch: a spurious release mid-hold, then the recovering
+    /// auto-repeat press ~300ms later (a slow Windows key-repeat period). The
+    /// wide Windows grace (500ms) bridges the gap, so recording is never
+    /// interrupted. This is the fix.
+    #[test]
+    fn windows_reconcile_glitch_is_coalesced_by_wide_grace() {
+        let events = [(0, Ev::Press), (1000, Ev::Release), (1300, Ev::Press)];
+        let result = simulate_timed(&events, 500);
+        assert_eq!(result.starts, 1, "recording starts exactly once");
+        assert_eq!(
+            result.stops, 0,
+            "the spurious release must not stop recording while the key is held"
+        );
+        assert_eq!(result.stage, SimStage::Recording);
+    }
+
+    /// The same glitch under the pre-fix 50ms grace reproduces the report: the
+    /// recovering press arrives long after the window closed, so the release
+    /// already stopped recording — and because the pipeline has moved on to
+    /// Processing, the still-held key cannot even restart it.
+    #[test]
+    fn windows_reconcile_glitch_cut_recording_with_the_old_grace() {
+        let events = [(0, Ev::Press), (1000, Ev::Release), (1300, Ev::Press)];
+        let result = simulate_timed(&events, 50);
+        assert_eq!(result.starts, 1);
+        assert_eq!(result.stops, 1, "the glitch cut the recording mid-hold");
+        assert_eq!(result.stage, SimStage::Processing);
+    }
+
+    /// The wide grace must not swallow a real release: with no recovering
+    /// press, the deferred release fires once the window elapses.
+    #[test]
+    fn windows_genuine_release_still_stops_after_wide_grace() {
+        let events = [(0, Ev::Press), (1000, Ev::Release)];
+        let result = simulate_timed(&events, 500);
+        assert_eq!(result.starts, 1);
+        assert_eq!(
+            result.stops, 1,
+            "a genuine release must still stop recording exactly once"
+        );
+        assert_eq!(result.stage, SimStage::Processing);
+    }
+
+    /// Guard the platform constants: the Windows grace must outlast the slowest
+    /// Windows key-repeat period (~400ms) so the recovering auto-repeat press
+    /// always cancels the glitch; other platforms keep a short, snappy window.
+    #[test]
+    fn release_grace_matches_platform() {
+        #[cfg(target_os = "windows")]
+        assert!(
+            RELEASE_GRACE >= Duration::from_millis(400),
+            "Windows grace must outlast the slowest key-repeat period"
+        );
+        #[cfg(not(target_os = "windows"))]
+        assert!(
+            RELEASE_GRACE <= Duration::from_millis(100),
+            "non-Windows grace stays short to keep push-to-talk snappy"
+        );
     }
 }
