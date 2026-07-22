@@ -1,0 +1,114 @@
+name: "Beta (solo Windows)"
+
+# Iteración rápida: compila ÚNICAMENTE el instalador de Windows x64 y lo publica
+# en un PRERELEASE con tag fijo `beta`, sobrescribiéndolo en cada corrida. Al ser
+# prerelease NO aparece en /releases/latest, así que los botones de la landing
+# (que consultan la API releases/latest) no se ven afectados.
+#
+# Reutiliza el workflow reusable build.yml (mismos pasos que el release completo,
+# sin duplicar nada): el job `build` compila y sube el artefacto de Windows; el
+# job `publish-beta` lo baja y refresca el release `beta`. build.yml queda
+# INTACTO -> 100% retrocompatible con release.yml y main-build.yml.
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  # Una sola corrida beta a la vez para no pisar el tag `beta` en paralelo.
+  group: beta-build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    permissions:
+      contents: write
+    uses: ./.github/workflows/build.yml
+    with:
+      platform: "windows-latest"
+      target: "x86_64-pc-windows-msvc"
+      # Vacío = bundles por defecto de Windows (MSI + NSIS). NO restringir a
+      # "--bundles nsis": el paso obligatorio "Audit Windows package runtime
+      # contents" de build.yml falla si no encuentra AMBOS paquetes.
+      build-args: ""
+      asset-prefix: "dictao"
+      # Build de prueba: sin firma (en este fork no hay secrets de firma igual).
+      sign-binaries: false
+      # Sube el .exe/.msi como artefacto de Actions para que publish-beta lo baje.
+      upload-artifacts: true
+      # no-cache queda en su default (false) -> se usa la caché de Rust para
+      # iterar rápido (el release completo la desactiva; la beta la aprovecha).
+    secrets: inherit
+
+  publish-beta:
+    needs: build
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Bajar artefacto de Windows x64
+        uses: actions/download-artifact@v7
+        with:
+          # Debe calzar con el nombre que sube build.yml:
+          # "${{ inputs.asset-prefix }}-${{ inputs.target }}".
+          name: dictao-x86_64-pc-windows-msvc
+          path: dist-beta
+
+      - name: Publicar / actualizar prerelease beta
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="beta"
+          TITLE="Dictao Beta (build de prueba)"
+
+          # 1) Localizar el instalador NSIS (.exe) y renombrarlo a un nombre FIJO
+          #    para que la URL de descarga sea estable aunque cambie la versión.
+          SRC_EXE="$(find dist-beta -type f -name '*.exe' | head -n1)"
+          if [ -z "$SRC_EXE" ]; then
+            echo "ERROR: no se encontró ningún instalador .exe en dist-beta/" >&2
+            find dist-beta -type f >&2 || true
+            exit 1
+          fi
+          BETA_EXE="Dictao-beta-x64-setup.exe"
+          cp "$SRC_EXE" "$BETA_EXE"
+          echo "Instalador: $SRC_EXE  ->  $BETA_EXE"
+
+          # 2) Notas del release (breves, en español).
+          cat > beta-notes.md <<'EOF'
+          Build de prueba (**prerelease**) generada automáticamente desde la última rama `main` de Dictao.
+
+          No es una versión estable ni oficial: sirve solo para probar los cambios más recientes.
+
+          - Plataforma: **Windows x64**
+          - Instalador: `Dictao-beta-x64-setup.exe`
+
+          La URL de descarga es fija y se sobrescribe en cada corrida.
+          EOF
+
+          # 3) Crear o actualizar el prerelease con tag fijo `beta`.
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release '$TAG' existe -> actualizando metadatos y limpiando assets."
+            gh release edit "$TAG" --prerelease --title "$TITLE" --notes-file beta-notes.md
+            # Borrar TODOS los assets anteriores para que no se acumulen.
+            gh release view "$TAG" --json assets --jq '.assets[].name' \
+              | while IFS= read -r asset; do
+                  [ -n "$asset" ] || continue
+                  echo "Borrando asset anterior: $asset"
+                  gh release delete-asset "$TAG" "$asset" -y
+                done
+          else
+            echo "Release '$TAG' no existe -> creándolo."
+            gh release create "$TAG" \
+              --target "$GITHUB_SHA" \
+              --prerelease \
+              --title "$TITLE" \
+              --notes-file beta-notes.md
+          fi
+
+          # 4) Subir el instalador con el nombre fijo.
+          echo "Subiendo instalador $BETA_EXE ..."
+          gh release upload "$TAG" "$BETA_EXE" --clobber
+
+          echo "URL fija: https://github.com/${GH_REPO}/releases/download/${TAG}/${BETA_EXE}"

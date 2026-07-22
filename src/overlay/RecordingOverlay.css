@@ -112,7 +112,15 @@
 
 /* Shared base card. Flat: theme surface + hairline border, no shadow or blur. */
 .scard {
-  width: var(--ov-pill-w);
+  /* Text-scale resilience: WebView2 applies the OS "text size" accessibility
+     factor (e.g. 130%) as a zoom, so 100vw reports the real (shrunken) CSS
+     viewport of the native overlay window. Clamp every card width to that
+     viewport so the card can never spill past the window, whatever the zoom.
+     8px = card borders 2 + 6px breathing; content-box, so the 2px borders sit
+     OUTSIDE the declared width and are subtracted here. At 100% scale
+     calc(100vw - 8px) >= every declared width (e.g. 460 - 8 = 452 = --ov-open-w),
+     so the min() is inert and widths render exactly as before. */
+  width: min(var(--ov-pill-w), calc(100vw - 8px));
   border-radius: 24px;
   overflow: hidden;
   display: flex;
@@ -148,11 +156,13 @@
     transform 300ms ease;
 }
 .scard.open {
-  width: var(--ov-open-w);
+  /* Clamp to viewport (see .scard) so the wide Live panel stays inside the window
+     when text-scale zooms it past 452px. Inert at 100% (452 == 460 - 8). */
+  width: min(var(--ov-open-w), calc(100vw - 8px));
   border-radius: 16px;
 }
 .scard.working {
-  width: var(--ov-work-w);
+  width: min(var(--ov-work-w), calc(100vw - 8px));
   border-radius: 18px;
 }
 
@@ -163,10 +173,12 @@
    center the longest label — the .swork-label ellipsis is only a safety net past it. */
 .scard.compact {
   animation: none;
-  width: var(--ov-rest-w);
+  /* Clamp to viewport (see .scard). The compact pill lives in the 256px window,
+     so 100vw here is that window; inert at 100% (172 < 256 - 8). */
+  width: min(var(--ov-rest-w), calc(100vw - 8px));
 }
 .scard.compact.cworking {
-  width: var(--ov-work-w);
+  width: min(var(--ov-work-w), calc(100vw - 8px));
 }
 
 /* text region — auto-height open via grid-rows trick; region fades as a whole */
@@ -187,7 +199,21 @@
   min-height: 0;
 }
 .stext-cap {
-  max-height: var(--ov-cap-max-h);
+  /* Text-scale resilience (height): the Live window is 200px tall. WebView2 zooms
+     content for the OS "text size" factor, so 100vh reports that window's real
+     (shrunken) CSS height. Clamp the cap so the WHOLE card (text + base row)
+     always fits, whatever the zoom.
+       X = cap vertical padding 12 (12 top + 0 bottom)   [content-box]
+         + base row 40 (--ov-base-h)
+         + card borders 2 (1 top + 1 bottom)
+         + 4px breathing
+         = 58px
+     i.e. everything that stacks around the cap's content box. At 100% scale
+     100vh = 200 -> 200 - 58 = 142 >= 141.75, so the min() is INERT: 7 lines
+     render exactly as today (card = 1 + [141.75 + 12] + 40 + 1 = 195.75 <= 200).
+     Above 100% the clamp trims the cap (fewer visible lines; auto-scroll still
+     pins the newest line at the bottom), keeping card = cap + 54 <= 100vh - 4. */
+  max-height: min(var(--ov-cap-max-h), calc(100vh - 58px));
   overflow-y: auto;
   overscroll-behavior: contain;
   display: flex;
@@ -212,6 +238,9 @@
   /* Bottom-anchor the text when it's shorter than the viewport, avoiding the
      justify-content:flex-end overflow bug that makes the top unscrollable. */
   margin: auto 0 0;
+  /* A single very long word (or URL) can't push the card wider than the clamped
+     width — break it instead of overflowing horizontally. */
+  overflow-wrap: break-word;
 }
 .stext-cap .tentative {
   color: inherit;
@@ -249,6 +278,7 @@
   padding-left: 5px;
   align-items: center;
   justify-self: start;
+  min-width: 0; /* let the left (dot/spinner) side yield space when width is tight */
 }
 .sbase-r {
   display: flex;
@@ -279,6 +309,7 @@
   white-space: nowrap;
   opacity: 0;
   transition: opacity 240ms ease 80ms;
+  flex: none; /* the counter never shrinks — it stays fully visible when tight */
 }
 .scard.open .stimer {
   opacity: 1;
@@ -292,6 +323,10 @@
   padding-right: 8px;
   height: 18px;
   flex: none;
+  /* The waveform is the flexible/expendable element: at very reduced widths it
+     compresses/clips first, so the timer + cancel on the right stay visible. */
+  min-width: 0;
+  overflow: hidden;
 }
 .swave i {
   width: 4px;
