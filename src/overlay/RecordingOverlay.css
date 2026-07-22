@@ -32,8 +32,12 @@
                          center longer labels; shared by Live (collapsed) + minimal */
   --ov-open-w: 452px; /* Live panel, expanded (wider so live text has more room) */
   --ov-base-h: 40px; /* control-row height (.sbase) */
-  --ov-cap-max-h: 148px; /* max height of the scrolling live-text region (~7 lines
-                            at 15px/1.35); keep overlay.rs OVERLAY_STREAM_HEIGHT in sync */
+  --ov-cap-max-h: 141.75px; /* exactly 7 lines: line-height = 15px font * 1.35 =
+                               20.25px; 7 * 20.25 = 141.75. An exact multiple of the
+                               line height means scrollTop (bottom-anchored auto-scroll)
+                               is always a multiple of it too, so the top visible line
+                               is never a partial fraction. Keep overlay.rs
+                               OVERLAY_STREAM_HEIGHT in sync. */
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -95,24 +99,14 @@
 }
 .ov-stage.top .stext-cap {
   /* Mirror of the bottom overlay (top: 12 / bottom: 0): the first line sits flush
-     under the pill and the breathing room moves below the text. The top fade is
-     off at rest — at zero top padding it would dim the resting first line — and
-     switches on (below) only once text overflows. */
+     under the pill and the breathing room moves below the text. */
   padding-top: 0;
   padding-bottom: 12px;
-  -webkit-mask-image: none;
-  mask-image: none;
-}
-/* Once live text overflows, fade older lines up under the pill, matching the
-   bottom overlay's top fade. Gated on `.overflowing` so a short resting line
-   (sitting at the very top) is never dimmed. */
-.ov-stage.top .stext-cap.overflowing {
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 18px);
-  mask-image: linear-gradient(to bottom, transparent 0, #000 18px);
 }
 .ov-stage.top .stext-cap p {
   /* Top-anchor short text just under the pill; on overflow the cap still pins to
-     the bottom (newest visible) and older lines fade off the top, same as bottom. */
+     the bottom (newest visible) and older lines scroll off cleanly under the pill,
+     same as bottom. */
   margin: 0;
 }
 
@@ -207,8 +201,6 @@
   line-height: 1.35;
   letter-spacing: -0.003em;
   color: color-mix(in srgb, var(--color-text) 90%, transparent);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 18px);
-  mask-image: linear-gradient(to bottom, transparent 0, #000 18px);
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* legacy Edge */
 }

@@ -46,11 +46,13 @@ tauri_panel! {
 const OVERLAY_WIDTH: f64 = 256.0;
 const OVERLAY_HEIGHT: f64 = 46.0;
 
-// Actual card is 454x202 (from RecordingOverlay.css: width = --ov-open-w 452 + 2px
-// border; height = --ov-cap-max-h 148 + 12px cap top-pad + --ov-base-h 40 + 2px
-// border). Window carries a little slack over the card (+6 wide, +4 tall).
+// Actual card is 454x195.75 (from RecordingOverlay.css: width = --ov-open-w 452 +
+// 2px border; height = --ov-cap-max-h 141.75 (exactly 7 lines at 15px font /
+// 1.35 line-height: 7 * 20.25 = 141.75) + 12px cap top-pad + --ov-base-h 40 +
+// 2px border = 195.75). Window carries a little slack over the card (+6 wide:
+// 460-454; +4.25 tall: 200-195.75).
 const OVERLAY_STREAM_WIDTH: f64 = 460.0;
-const OVERLAY_STREAM_HEIGHT: f64 = 206.0;
+const OVERLAY_STREAM_HEIGHT: f64 = 200.0;
 
 /// Overlay window size (logical) for a given UI state.
 fn overlay_dimensions(state: &str) -> (f64, f64) {
