@@ -391,8 +391,73 @@ fn show_overlay_state(app_handle: &AppHandle, state: &str) {
         update_gtk_layer_shell_anchors(&overlay_window);
 
         let size_started = std::time::Instant::now();
-        let _ = overlay_window.set_size(tauri::Size::Logical(tauri::LogicalSize { width, height }));
+        // Lock the overlay's PIXEL size to the display it will appear on, using
+        // the *monitor's* scale factor (the authoritative source already trusted
+        // for positioning) instead of the *window's* own scale_factor.
+        // set_size(Size::Logical) multiplies by the window's current
+        // scale_factor; when that disagrees with the real display DPI — observed
+        // on Windows at fractional display scale (e.g. 140% / scale 1.4), and
+        // possible before a hidden window has been DPI-initialized — the window
+        // comes out ~1/scale too small (e.g. 71% at 140%) while WebView2 still
+        // rasterizes the card at the true monitor DPI, clipping it on every inner
+        // edge (both sides + the anchored edge). Computing physical pixels here
+        // keeps the window matched to what the webview actually draws. Neutral at
+        // 100% (scale 1.0 -> physical == logical). macOS keeps logical sizing:
+        // its scale factors are integral and the NSPanel path tracks DPI reliably.
+        #[cfg(not(target_os = "macos"))]
+        let (overlay_size, monitor_scale, phys_w, phys_h) =
+            match get_monitor_with_cursor(app_handle) {
+                Some(monitor) => {
+                    let scale = monitor.scale_factor();
+                    let pw = (width * scale).round() as u32;
+                    let ph = (height * scale).round() as u32;
+                    (
+                        tauri::Size::Physical(tauri::PhysicalSize {
+                            width: pw,
+                            height: ph,
+                        }),
+                        Some(scale),
+                        pw,
+                        ph,
+                    )
+                }
+                None => (
+                    tauri::Size::Logical(tauri::LogicalSize { width, height }),
+                    None,
+                    width.round() as u32,
+                    height.round() as u32,
+                ),
+            };
+        #[cfg(target_os = "macos")]
+        let (overlay_size, monitor_scale, phys_w, phys_h) = (
+            tauri::Size::Logical(tauri::LogicalSize { width, height }),
+            None::<f64>,
+            width.round() as u32,
+            height.round() as u32,
+        );
+        let _ = overlay_window.set_size(overlay_size);
         let size_elapsed = size_started.elapsed();
+
+        // Diagnostic: surface any mismatch between the window's own scale_factor
+        // (what set_size(Size::Logical) would have multiplied by) and the monitor
+        // scale we now size from — a window_scale below monitor_scale is the
+        // fractional-DPI clipping root cause. Streaming only, to avoid log spam.
+        if state == "streaming" {
+            let window_scale = overlay_window.scale_factor().unwrap_or(0.0);
+            let monitor_scale_str = match monitor_scale {
+                Some(scale) => scale.to_string(),
+                None => "none".to_string(),
+            };
+            log::info!(
+                "overlay streaming: window_scale={} monitor_scale={} logical={}x{} physical={}x{}",
+                window_scale,
+                monitor_scale_str,
+                width,
+                height,
+                phys_w,
+                phys_h
+            );
+        }
 
         let pos_started = std::time::Instant::now();
         let mut set_pos_elapsed = std::time::Duration::ZERO;
