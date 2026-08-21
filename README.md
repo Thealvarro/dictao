@@ -4,7 +4,7 @@
 
 [![Licencia MIT](https://img.shields.io/badge/licencia-MIT-F97316?style=for-the-badge)](LICENSE)
 [![Plataformas](https://img.shields.io/badge/Windows%20%C2%B7%20macOS%20%C2%B7%20Linux-0B0E14?style=for-the-badge)](#descarga)
-[![Última versión](https://img.shields.io/badge/release-1.0.0-F97316?style=for-the-badge)](https://github.com/Thealvarro/dictao/releases/latest)
+[![Última versión](https://img.shields.io/github/v/release/Thealvarro/dictao?style=for-the-badge&color=F97316&label=release)](https://github.com/Thealvarro/dictao/releases/latest)
 
 ---
 
