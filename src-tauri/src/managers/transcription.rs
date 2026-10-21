@@ -17,8 +17,8 @@ use std::time::{Duration, Instant, SystemTime};
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_specta::Event;
 use transcribe_cpp::{
-    Backend, Feature, Model, ModelOptions, RunExtension, RunOptions, Session, StreamOptions, Task,
-    WhisperRunOptions,
+    Backend, Feature, Model, ModelOptions, ParakeetStreamOptions, RunExtension, RunOptions,
+    Session, StreamExtension, StreamOptions, Task, WhisperRunOptions,
 };
 use transcribe_rs::{
     onnx::{
@@ -852,7 +852,7 @@ impl TranscriptionManager {
         // Only transcribe-cpp models expose streaming; ONNX engines fall back to
         // batch. The loaded session (not the ModelManager copy) is the source of
         // truth for run-path capabilities.
-        let (supports_streaming, supports_translate, languages) = match &engine {
+        let (supports_streaming, supports_translate, languages, is_nemotron) = match &engine {
             LoadedEngine::TranscribeCpp(session) => {
                 let model = session.model();
                 let caps = model.capabilities();
@@ -870,6 +870,7 @@ impl TranscriptionManager {
                     caps.supports_streaming,
                     caps.supports_translate,
                     caps.languages,
+                    model.variant().starts_with("nemotron"),
                 )
             }
             _ => {
@@ -878,7 +879,7 @@ impl TranscriptionManager {
                      streaming is unavailable, using batch transcription",
                     model_id
                 );
-                (false, false, Vec::new())
+                (false, false, Vec::new(), false)
             }
         };
 
@@ -925,8 +926,21 @@ impl TranscriptionManager {
             let backend = session.model().backend();
 
             // StreamOptions::default() uses CommitPolicy::Auto and lets the
-            // family pick its own streaming strategy (no family-specific ext).
-            let mut stream = match session.stream(&run_options, &StreamOptions::default()) {
+            // family pick its own streaming strategy. Nemotron's default
+            // lookahead is the max (1040 ms), which makes the live preview
+            // advance in ~1.3 s jumps; right=6 (480 ms) halves that lag at a
+            // small accuracy cost. 6 is in Nemotron's trained menu {13, 6, 3, 0}.
+            let stream_options = if is_nemotron {
+                StreamOptions {
+                    family: Some(StreamExtension::ParakeetStream(ParakeetStreamOptions {
+                        att_context_right: Some(6),
+                    })),
+                    ..Default::default()
+                }
+            } else {
+                StreamOptions::default()
+            };
+            let mut stream = match session.stream(&run_options, &stream_options) {
                 Ok(s) => s,
                 Err(e) => {
                     error!("Failed to begin stream: {}", e);
