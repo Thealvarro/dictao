@@ -237,6 +237,18 @@
       "volume": {
         "title": "Hlasitost",
         "description": "Upravte hlasitost zvukové odezvy"
+      },
+      "themes": {
+        "marimba": "Marimba",
+        "pop": "Pop",
+        "droplet": "Droplet",
+        "chime": "Chime",
+        "bubble": "Bubble",
+        "crystal": "Crystal",
+        "wood": "Wood",
+        "air": "Air",
+        "rise": "Soft rise",
+        "custom": "Custom"
       }
     },
     "advanced": {

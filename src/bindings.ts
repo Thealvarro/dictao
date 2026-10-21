@@ -982,7 +982,7 @@ export type PostProcessProvider = { id: string; label: string; base_url: string;
 export type RecordingRetentionPeriod = "never" | "preserve_limit" | "days_3" | "weeks_2" | "months_3"
 export type SecretMap = Partial<{ [key in string]: string }>
 export type ShortcutBinding = { id: string; name: string; description: string; default_binding: string; current_binding: string }
-export type SoundTheme = "marimba" | "pop" | "custom"
+export type SoundTheme = "marimba" | "pop" | "droplet" | "chime" | "bubble" | "crystal" | "wood" | "air" | "rise" | "custom"
 /**
  * Phase of the streaming overlay card, emitted to drive its UI state.
  */

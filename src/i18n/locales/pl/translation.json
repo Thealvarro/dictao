@@ -237,6 +237,18 @@
       "volume": {
         "title": "Głośność",
         "description": "Dostosuj głośność dźwięków informacyjnych"
+      },
+      "themes": {
+        "marimba": "Marimba",
+        "pop": "Pop",
+        "droplet": "Droplet",
+        "chime": "Chime",
+        "bubble": "Bubble",
+        "crystal": "Crystal",
+        "wood": "Wood",
+        "air": "Air",
+        "rise": "Soft rise",
+        "custom": "Custom"
       }
     },
     "advanced": {

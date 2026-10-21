@@ -216,6 +216,18 @@
       "volume": {
         "title": "مستوى الصوت",
         "description": "ضبط مستوى صوت تنبيهات الصوت"
+      },
+      "themes": {
+        "marimba": "Marimba",
+        "pop": "Pop",
+        "droplet": "Droplet",
+        "chime": "Chime",
+        "bubble": "Bubble",
+        "crystal": "Crystal",
+        "wood": "Wood",
+        "air": "Air",
+        "rise": "Soft rise",
+        "custom": "Custom"
       }
     },
     "advanced": {

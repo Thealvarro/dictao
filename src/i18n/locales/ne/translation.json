@@ -237,6 +237,18 @@
       "volume": {
         "title": "भोल्युम",
         "description": "अडियो फिडब्याक आवाजको भोल्युम मिलाउनुहोस्"
+      },
+      "themes": {
+        "marimba": "Marimba",
+        "pop": "Pop",
+        "droplet": "Droplet",
+        "chime": "Chime",
+        "bubble": "Bubble",
+        "crystal": "Crystal",
+        "wood": "Wood",
+        "air": "Air",
+        "rise": "Soft rise",
+        "custom": "Custom"
       }
     },
     "advanced": {

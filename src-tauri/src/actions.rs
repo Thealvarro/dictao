@@ -622,6 +622,12 @@ impl ShortcutAction for TranscribeAction {
         let tm = Arc::clone(&app.state::<Arc<TranscriptionManager>>());
         let hm = Arc::clone(&app.state::<Arc<HistoryManager>>());
 
+        // Unmute before playing audio feedback so the stop sound is audible.
+        // Done first so the cue lands on the key release, ahead of the tray
+        // and overlay updates below (~40 ms).
+        rm.remove_mute();
+        play_feedback_sound(app, SoundType::Stop);
+
         change_tray_icon(app, TrayIconState::Transcribing);
         // Stop should give immediate visual feedback. Live streaming can keep
         // the larger panel, but it still switches from listening to a working
@@ -636,12 +642,6 @@ impl ShortcutAction for TranscribeAction {
         } else {
             show_transcribing_overlay(app);
         }
-
-        // Unmute before playing audio feedback so the stop sound is audible
-        rm.remove_mute();
-
-        // Play audio feedback for recording stop
-        play_feedback_sound(app, SoundType::Stop);
 
         let binding_id = binding_id.to_string(); // Clone binding_id for the async task
         let post_process = self.post_process;

@@ -503,6 +503,13 @@ pub fn change_sound_theme_setting(app: AppHandle, theme: String) -> Result<(), S
     let parsed = match theme.as_str() {
         "marimba" => SoundTheme::Marimba,
         "pop" => SoundTheme::Pop,
+        "droplet" => SoundTheme::Droplet,
+        "chime" => SoundTheme::Chime,
+        "bubble" => SoundTheme::Bubble,
+        "crystal" => SoundTheme::Crystal,
+        "wood" => SoundTheme::Wood,
+        "air" => SoundTheme::Air,
+        "rise" => SoundTheme::Rise,
         "custom" => SoundTheme::Custom,
         other => {
             warn!("Invalid sound theme '{}', defaulting to marimba", other);

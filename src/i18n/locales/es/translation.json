@@ -237,6 +237,18 @@
       "volume": {
         "title": "Volumen",
         "description": "Ajusta el volumen de los sonidos de retroalimentación de audio"
+      },
+      "themes": {
+        "marimba": "Marimba",
+        "pop": "Pop",
+        "droplet": "Gota",
+        "chime": "Campanita",
+        "bubble": "Burbuja",
+        "crystal": "Cristal",
+        "wood": "Madera",
+        "air": "Aire",
+        "rise": "Ascenso suave",
+        "custom": "Personalizado"
       }
     },
     "advanced": {

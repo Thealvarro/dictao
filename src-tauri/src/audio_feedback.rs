@@ -2,11 +2,13 @@ use crate::settings::SoundTheme;
 use crate::settings::{self, AppSettings};
 use cpal::traits::{DeviceTrait, HostTrait};
 use log::{debug, error, warn};
-use rodio::OutputStreamBuilder;
-use std::fs::File;
-use std::io::BufReader;
+use rodio::{OutputStream, OutputStreamBuilder};
+use std::io::Cursor;
 use std::path::{Path, PathBuf};
+use std::sync::mpsc::{self, RecvTimeoutError};
+use std::sync::OnceLock;
 use std::thread;
+use std::time::{Duration, Instant};
 use tauri::{AppHandle, Manager};
 
 pub enum SoundType {
@@ -73,32 +75,126 @@ pub fn play_test_sound(app: &AppHandle, sound_type: SoundType) {
 }
 
 fn play_sound_async(app: &AppHandle, path: PathBuf) {
-    let app_handle = app.clone();
-    thread::spawn(move || {
-        if let Err(e) = play_sound_at_path(&app_handle, path.as_path()) {
-            error!("Failed to play sound '{}': {}", path.display(), e);
-        }
-    });
+    send_to_player(app, path, None);
 }
 
 fn play_sound_blocking(app: &AppHandle, path: &Path) {
-    if let Err(e) = play_sound_at_path(app, path) {
-        error!("Failed to play sound '{}': {}", path.display(), e);
+    let (done_tx, done_rx) = mpsc::channel();
+    send_to_player(app, path.to_path_buf(), Some(done_tx));
+    // Errors (or a dropped sender when playback fails) just end the wait.
+    let _ = done_rx.recv();
+}
+
+/// How long the output stream stays open after the last cue. Opening an
+/// output stream costs tens of ms, so keeping it warm across a dictation
+/// (start cue -> stop cue) makes the stop cue instant. It still closes when
+/// idle so we don't hold an audio session that can keep Windows from sleeping.
+const STREAM_IDLE_TIMEOUT: Duration = Duration::from_secs(60);
+
+/// Upper bound when waiting for a cue to finish, so a stream that dies
+/// mid-playback can never hang the caller (and the mute that follows it).
+const MAX_CUE_WAIT: Duration = Duration::from_secs(5);
+
+struct PlayRequest {
+    path: PathBuf,
+    device: Option<String>,
+    volume: f32,
+    done: Option<mpsc::Sender<()>>,
+}
+
+fn send_to_player(app: &AppHandle, path: PathBuf, done: Option<mpsc::Sender<()>>) {
+    static PLAYER: OnceLock<mpsc::Sender<PlayRequest>> = OnceLock::new();
+    let player = PLAYER.get_or_init(|| {
+        let (tx, rx) = mpsc::channel();
+        thread::spawn(move || player_loop(rx));
+        tx
+    });
+
+    let settings = settings::get_settings(app);
+    let request = PlayRequest {
+        path,
+        device: settings.selected_output_device.clone(),
+        volume: settings.audio_feedback_volume,
+        done,
+    };
+    if player.send(request).is_err() {
+        error!("Audio feedback player thread is gone");
     }
 }
 
-fn play_sound_at_path(app: &AppHandle, path: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let settings = settings::get_settings(app);
-    let volume = settings.audio_feedback_volume;
-    let selected_device = settings.selected_output_device.clone();
-    play_audio_file(path, selected_device, volume)
+/// Owns the output stream for its whole life: cpal streams can't move between
+/// threads, and reusing one is what removes the per-cue open latency.
+fn player_loop(rx: mpsc::Receiver<PlayRequest>) {
+    let mut stream: Option<(Option<String>, OutputStream)> = None;
+    loop {
+        let request = if stream.is_some() {
+            match rx.recv_timeout(STREAM_IDLE_TIMEOUT) {
+                Ok(request) => request,
+                Err(RecvTimeoutError::Timeout) => {
+                    debug!("Closing idle audio feedback stream");
+                    stream = None;
+                    continue;
+                }
+                Err(RecvTimeoutError::Disconnected) => return,
+            }
+        } else {
+            match rx.recv() {
+                Ok(request) => request,
+                Err(_) => return,
+            }
+        };
+
+        let path = request.path.clone();
+        if let Err(e) = play_request(&mut stream, request) {
+            error!("Failed to play sound '{}': {}", path.display(), e);
+            // Reopen on the next cue in case the device went away.
+            stream = None;
+        }
+    }
 }
 
-fn play_audio_file(
-    path: &std::path::Path,
-    selected_device: Option<String>,
-    volume: f32,
+fn play_request(
+    stream: &mut Option<(Option<String>, OutputStream)>,
+    request: PlayRequest,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let reusable = stream
+        .as_ref()
+        .is_some_and(|(device, _)| *device == request.device);
+    if !reusable {
+        // Release the old device before opening the new one.
+        *stream = None;
+        *stream = Some((
+            request.device.clone(),
+            open_output_stream(request.device.clone())?,
+        ));
+    }
+    let Some((_, output)) = stream.as_ref() else {
+        return Ok(());
+    };
+
+    let bytes = std::fs::read(&request.path)?;
+    let sink = rodio::play(output.mixer(), Cursor::new(bytes))?;
+    sink.set_volume(request.volume);
+
+    match request.done {
+        // Wait on a helper thread so a long start cue never delays the stop cue.
+        Some(done) => {
+            thread::spawn(move || {
+                let deadline = Instant::now() + MAX_CUE_WAIT;
+                while !sink.empty() && Instant::now() < deadline {
+                    thread::sleep(Duration::from_millis(10));
+                }
+                let _ = done.send(());
+            });
+        }
+        None => sink.detach(),
+    }
+    Ok(())
+}
+
+fn open_output_stream(
+    selected_device: Option<String>,
+) -> Result<OutputStream, Box<dyn std::error::Error>> {
     let stream_builder = if let Some(device_name) = selected_device {
         if device_name == "Default" {
             debug!("Using default device");
@@ -128,15 +224,5 @@ fn play_audio_file(
         OutputStreamBuilder::from_default_device()?
     };
 
-    let stream_handle = stream_builder.open_stream()?;
-    let mixer = stream_handle.mixer();
-
-    let file = File::open(path)?;
-    let buf_reader = BufReader::new(file);
-
-    let sink = rodio::play(mixer, buf_reader)?;
-    sink.set_volume(volume);
-    sink.sleep_until_end();
-
-    Ok(())
+    Ok(stream_builder.open_stream()?)
 }

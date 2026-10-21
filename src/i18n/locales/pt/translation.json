@@ -237,6 +237,18 @@
       "volume": {
         "title": "Volume",
         "description": "Ajustar o volume dos sons de feedback de áudio"
+      },
+      "themes": {
+        "marimba": "Marimba",
+        "pop": "Pop",
+        "droplet": "Droplet",
+        "chime": "Chime",
+        "bubble": "Bubble",
+        "crystal": "Crystal",
+        "wood": "Wood",
+        "air": "Air",
+        "rise": "Soft rise",
+        "custom": "Custom"
       }
     },
     "advanced": {

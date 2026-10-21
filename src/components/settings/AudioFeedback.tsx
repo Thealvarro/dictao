@@ -27,6 +27,12 @@ export const AudioFeedback: React.FC<AudioFeedbackProps> = React.memo(
           descriptionMode={descriptionMode}
           grouped={grouped}
         />
+        {audioFeedbackEnabled && (
+          <SoundPicker
+            label={t("settings.debug.soundTheme.label")}
+            description={t("settings.debug.soundTheme.description")}
+          />
+        )}
       </div>
     );
   },
