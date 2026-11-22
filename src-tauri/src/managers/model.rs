@@ -285,6 +285,86 @@ fn hf_cached_path(repo_id: &str, revision: &str, filename: &str) -> Option<PathB
         .get(filename)
 }
 
+/// Fallback for networks (antivirus HTTPS inspection, proxies) that strip the
+/// `etag` headers hf-hub requires. Downloads the file with a plain GET and
+/// stores it in the same HF cache snapshot, so `hf_cached_path` finds it.
+/// Returns `Ok(false)` if cancelled.
+async fn hf_download_direct(
+    cache: &Cache,
+    repo_id: &str,
+    revision: &str,
+    filename: &str,
+    cancel_token: &CancellationToken,
+    mut on_progress: impl FnMut(u64, u64),
+) -> Result<bool> {
+    let client = reqwest::Client::new();
+
+    // Resolve the revision to a commit hash from the JSON body (not headers).
+    let info: serde_json::Value = client
+        .get(format!(
+            "https://huggingface.co/api/models/{}/revision/{}",
+            repo_id, revision
+        ))
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
+    let commit = info["sha"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("Hugging Face did not return a commit for {}", repo_id))?
+        .to_string();
+
+    let cache_repo = cache.repo(Repo::with_revision(
+        repo_id.to_string(),
+        RepoType::Model,
+        revision.to_string(),
+    ));
+    let target = cache_repo.pointer_path(&commit).join(filename);
+    let part = target.with_file_name(format!("{}.direct.part", filename));
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent)?;
+    }
+
+    let response = client
+        .get(format!(
+            "https://huggingface.co/{}/resolve/{}/{}",
+            repo_id, commit, filename
+        ))
+        .send()
+        .await?
+        .error_for_status()?;
+    let total = response.content_length().unwrap_or(0);
+    let mut stream = response.bytes_stream();
+    let mut file = File::create(&part)?;
+    let mut downloaded = 0u64;
+    while let Some(chunk) = stream.next().await {
+        if cancel_token.is_cancelled() {
+            drop(file);
+            let _ = fs::remove_file(&part);
+            return Ok(false);
+        }
+        let chunk = chunk?;
+        file.write_all(&chunk)?;
+        downloaded += chunk.len() as u64;
+        on_progress(downloaded, total);
+    }
+    file.flush()?;
+    drop(file);
+
+    if total > 0 && downloaded != total {
+        let _ = fs::remove_file(&part);
+        return Err(anyhow::anyhow!(
+            "Download incomplete: expected {} bytes, got {} bytes",
+            total,
+            downloaded
+        ));
+    }
+    fs::rename(&part, &target)?;
+    cache_repo.create_ref(&commit)?;
+    Ok(true)
+}
+
 /// Friendly name advertised by GGUF metadata, if present. Empty strings are not
 /// useful display names, so callers can keep their filename/repo fallback.
 fn probed_display_name(probe: &CapabilityProbe) -> Option<String> {
@@ -1797,10 +1877,14 @@ impl ModelManager {
             .with_max_files(8)
             .build()
             .map_err(|e| anyhow::anyhow!("Failed to init Hugging Face API: {}", e))?;
-        let repo = api.repo(Repo::with_revision(repo_id, RepoType::Model, revision));
+        let repo = api.repo(Repo::with_revision(
+            repo_id.clone(),
+            RepoType::Model,
+            revision.clone(),
+        ));
         let progress = HfDownloadProgress::new(self.app_handle.clone(), model_id.clone());
         match repo
-            .download_with_progress_cancellable(&filename, progress, cancel_token)
+            .download_with_progress_cancellable(&filename, progress, cancel_token.clone())
             .await
         {
             Ok(_) => {}
@@ -1812,6 +1896,46 @@ impl ModelManager {
                 // `model-download-cancelled`.
                 info!("HF download cancelled for: {}", model_id);
                 return Ok(());
+            }
+            Err(hf_hub::api::tokio::ApiError::MissingHeader(header)) => {
+                warn!(
+                    "HF response missing header {} for {}, falling back to direct download",
+                    header, model_id
+                );
+                let app = self.app_handle.clone();
+                let mut last_emit = Instant::now();
+                let completed = hf_download_direct(
+                    &Cache::from_env(),
+                    &repo_id,
+                    &revision,
+                    &filename,
+                    &cancel_token,
+                    |downloaded, total| {
+                        if last_emit.elapsed() < Duration::from_millis(100) {
+                            return;
+                        }
+                        last_emit = Instant::now();
+                        let _ = app.emit(
+                            "model-download-progress",
+                            &DownloadProgress {
+                                model_id: model_id.clone(),
+                                downloaded,
+                                total,
+                                percentage: if total > 0 {
+                                    downloaded as f64 / total as f64 * 100.0
+                                } else {
+                                    0.0
+                                },
+                            },
+                        );
+                    },
+                )
+                .await
+                .map_err(|e| anyhow::anyhow!("Hugging Face download failed: {}", e))?;
+                if !completed {
+                    info!("HF direct download cancelled for: {}", model_id);
+                    return Ok(());
+                }
             }
             Err(e) => {
                 return Err(anyhow::anyhow!("Hugging Face download failed: {}", e));
@@ -2361,6 +2485,36 @@ mod tests {
     use super::*;
     use std::io::Write;
     use tempfile::TempDir;
+
+    /// Network test: the etag-less fallback must leave the file where the
+    /// normal HF cache lookup finds it. Run with `cargo test -- --ignored`.
+    #[tokio::test]
+    #[ignore]
+    async fn hf_direct_download_lands_in_cache() {
+        let dir = TempDir::new().unwrap();
+        let cache = Cache::new(dir.path().to_path_buf());
+        let repo = "handy-computer/nemotron-3.5-asr-streaming-0.6b-gguf";
+        let ok = hf_download_direct(
+            &cache,
+            repo,
+            "main",
+            "NOTICE",
+            &CancellationToken::new(),
+            |_, _| {},
+        )
+        .await
+        .unwrap();
+        assert!(ok);
+        let found = cache
+            .repo(Repo::with_revision(
+                repo.to_string(),
+                RepoType::Model,
+                "main".to_string(),
+            ))
+            .get("NOTICE")
+            .expect("file should be found in the cache");
+        assert_eq!(fs::metadata(found).unwrap().len(), 411);
+    }
 
     #[test]
     fn test_effective_language_accepts_chinese_script_intent_for_zh_capability() {
