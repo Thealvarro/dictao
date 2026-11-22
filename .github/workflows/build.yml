@@ -280,9 +280,6 @@ jobs:
           echo "CMAKE_C_COMPILER_TARGET=aarch64-pc-windows-msvc" >> $env:GITHUB_ENV
           echo "CMAKE_CXX_COMPILER_TARGET=aarch64-pc-windows-msvc" >> $env:GITHUB_ENV
           echo "CL=/EHsc" >> $env:GITHUB_ENV
-          # ort-sys copies its DLLs into this folder without creating it; on a
-          # cold Rust cache (new branch) the build script panics with NotFound.
-          New-Item -ItemType Directory -Force -Path src-tauri/target/aarch64-pc-windows-msvc/release/build | Out-Null
           # Link uses lld-link + llvm-mt; use llvm-rc for resources too. Microsoft's
           # rc.exe fails the manifest with "RC2136" under this clang-cl/lld toolchain
           # (seen in ggml-vulkan's vulkan-shaders-gen host sub-build). CMake honors
