@@ -280,6 +280,9 @@ jobs:
           echo "CMAKE_C_COMPILER_TARGET=aarch64-pc-windows-msvc" >> $env:GITHUB_ENV
           echo "CMAKE_CXX_COMPILER_TARGET=aarch64-pc-windows-msvc" >> $env:GITHUB_ENV
           echo "CL=/EHsc" >> $env:GITHUB_ENV
+          # ort-sys copies its DLLs into this folder without creating it; on a
+          # cold Rust cache (new branch) the build script panics with NotFound.
+          New-Item -ItemType Directory -Force -Path src-tauri/target/aarch64-pc-windows-msvc/release/build | Out-Null
           # Link uses lld-link + llvm-mt; use llvm-rc for resources too. Microsoft's
           # rc.exe fails the manifest with "RC2136" under this clang-cl/lld toolchain
           # (seen in ggml-vulkan's vulkan-shaders-gen host sub-build). CMake honors
@@ -422,10 +425,12 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $ORT_VERSION = "1.24.2"
-          $url = "https://github.com/microsoft/onnxruntime/releases/download/v$ORT_VERSION/onnxruntime-win-x64-$ORT_VERSION.zip"
+          # github.com/microsoft/onnxruntime went offline (404) in Nov 2026; the
+          # same official build ships in the NuGet package (onnxruntime.dll/.lib).
+          $url = "https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime/$ORT_VERSION/microsoft.ml.onnxruntime.$ORT_VERSION.nupkg"
           Invoke-WebRequest -Uri $url -OutFile ort.zip
           Expand-Archive -Path ort.zip -DestinationPath ort-dist -Force
-          $ortLib = (Resolve-Path "ort-dist/onnxruntime-win-x64-$ORT_VERSION/lib").Path
+          $ortLib = (Resolve-Path "ort-dist/runtimes/win-x64/native").Path
           Write-Host "ORT_LIB_LOCATION=$ortLib"
           Add-Content -Path $env:GITHUB_ENV -Value "ORT_LIB_LOCATION=$ortLib"
           Add-Content -Path $env:GITHUB_ENV -Value "ORT_PREFER_DYNAMIC_LINK=1"
